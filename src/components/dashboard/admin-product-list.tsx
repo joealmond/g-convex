@@ -12,8 +12,6 @@ import { Skeleton } from '../ui/skeleton';
 import { Link } from '@tanstack/react-router';
 import { Button } from '../ui/button';
 import { Trash2, RefreshCw } from 'lucide-react';
-// import { useFirestore } from '@/firebase';
-// import { doc, deleteDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { recalculateProductAveragesWithTimeDecay } from '@/app/actions';
 import {
@@ -27,9 +25,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-// import { errorEmitter } from '@/firebase/error-emitter';
-// import { FirestorePermissionError } from '@/firebase/errors';
 import { useTranslations } from '@/lib/i18n';
+import { useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
+import type { Id } from '../../../convex/_generated/dataModel';
 
 type AdminProductListProps = {
   chartData: Product[];
@@ -39,17 +38,25 @@ type AdminProductListProps = {
 };
 
 export function AdminProductList({ chartData, onItemClick, highlightedProduct, loading }: AdminProductListProps) {
-    // const firestore = useFirestore();
     const { toast } = useToast();
     const t = useTranslations('AdminProductList');
     const [recalculatingId, setRecalculatingId] = useState<string | null>(null);
+    const deleteProductMutation = useMutation(api.products.deleteProduct);
 
-    const handleDelete = (productId: string, productName: string) => {
-        console.log("Mock delete product", productId, productName);
-        toast({
-            title: t('productDeleted'),
-            description: t('productDeletedDesc', { productName }),
-        });
+    const handleDelete = async (productId: string, productName: string) => {
+        try {
+            await deleteProductMutation({ productId: productId as Id<"products"> });
+            toast({
+                title: t('productDeleted'),
+                description: t('productDeletedDesc', { productName }),
+            });
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Delete failed',
+                description: error.message,
+            });
+        }
     };
 
     const handleRecalculate = async (productId: string, productName: string) => {
@@ -143,10 +150,10 @@ export function AdminProductList({ chartData, onItemClick, highlightedProduct, l
                     variant="ghost" 
                     size="icon" 
                     className="text-muted-foreground hover:text-foreground"
-                    onClick={() => handleRecalculate(item.id, item.name)}
-                    disabled={recalculatingId === item.id}
+                    onClick={() => handleRecalculate(item._id ?? item.id, item.name)}
+                    disabled={recalculatingId === (item._id ?? item.id)}
                 >
-                    <RefreshCw className={cn("h-4 w-4", recalculatingId === item.id && "animate-spin")} />
+                    <RefreshCw className={cn("h-4 w-4", recalculatingId === (item._id ?? item.id) && "animate-spin")} />
                     <span className="sr-only">{t('recalculate') || 'Recalculate'}</span>
                 </Button>
                 <AlertDialog>
@@ -165,7 +172,7 @@ export function AdminProductList({ chartData, onItemClick, highlightedProduct, l
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                         <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleDelete(item.id, item.name)} className="bg-destructive hover:bg-destructive/90">
+                        <AlertDialogAction onClick={() => handleDelete(item._id ?? item.id, item.name)} className="bg-destructive hover:bg-destructive/90">
                             {t('delete')}
                         </AlertDialogAction>
                         </AlertDialogFooter>

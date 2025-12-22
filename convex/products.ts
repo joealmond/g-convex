@@ -66,3 +66,44 @@ export const applyTimeDecay = internalMutation({
     }
   }
 });
+
+// Admin emails for authorization
+const ADMIN_EMAILS = [
+  "jozsef.mandula@gmail.com",
+];
+
+/**
+ * Delete a product (admin only) - also deletes all associated votes
+ */
+export const deleteProduct = mutation({
+  args: { productId: v.id("products") },
+  handler: async (ctx, args) => {
+    // Check if user is admin
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity || !identity.email || !ADMIN_EMAILS.includes(identity.email)) {
+      throw new Error("Unauthorized: Admin access required");
+    }
+
+    // Get the product first to verify it exists
+    const product = await ctx.db.get(args.productId);
+    if (!product) {
+      throw new Error("Product not found");
+    }
+
+    // Delete all votes for this product
+    const votes = await ctx.db
+      .query("votes")
+      .withIndex("by_product", (q) => q.eq("productId", args.productId))
+      .collect();
+
+    for (const vote of votes) {
+      await ctx.db.delete(vote._id);
+    }
+
+    // Delete the product
+    await ctx.db.delete(args.productId);
+
+    return { success: true, deletedVotes: votes.length, productName: product.name };
+  },
+});
+

@@ -11,18 +11,7 @@ import type { Product } from '@/lib/types';
 import { Skeleton } from '../ui/skeleton';
 import { Link } from '@tanstack/react-router';
 import { Users, ShieldCheck, MapPin } from 'lucide-react';
-
-// import { useTranslations } from 'next-intl'; 
-// Mock t function
-const t = (k: string, opts?: any) => { 
-    if(k==='title') return 'Top Products';
-    if(k==='noProducts') return 'No products found.';
-    if(k==='scanToStart') return 'Scan a barcode or search to get started.';
-    const map: any = { safety: 'Safety: {value}%', taste: 'Taste: {value}%' };
-    let val = map[k] || k;
-    if(opts?.value !== undefined) val = val.replace('{value}', opts.value);
-    return val;
-};
+import { useTranslations } from '@/lib/i18n';
 
 type ProductListProps = {
   chartData: Product[];
@@ -32,7 +21,7 @@ type ProductListProps = {
 };
 
 export function ProductList({ chartData, onItemClick, highlightedProduct, loading }: ProductListProps) {
-  // const t = useTranslations('ProductList');
+  const t = useTranslations('ProductList');
   
   return (
     <Card>

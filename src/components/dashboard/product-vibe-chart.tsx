@@ -36,7 +36,7 @@ export function ProductVibeChart({ mode = 'vibe' }: ProductVibeChartProps) {
   return (
     <div className="h-full w-full">
       <ChartContainer config={chartConfig} className="w-full h-full">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={100}>
         <ScatterChart
           margin={{
             top: 20,

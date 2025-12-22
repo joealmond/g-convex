@@ -1,88 +1,46 @@
 # Migration Gap Analysis
 
-This document identifies features from `g-matrix` that are **MISSING** or **INCOMPLETE** in the current `g-convex` implementation.
+> **Status**: ✅ Complete | **Last Updated**: December 2024
 
-> **Last Updated**: December 2024
+## All Features Complete
 
-## ✅ Completed Features
+| Feature | Status |
+|---------|--------|
+| Auth (Google OAuth) | ✅ |
+| Anonymous Users | ✅ |
+| Weighted Voting | ✅ |
+| Time Decay Cron | ✅ |
+| Gamification | ✅ |
+| i18n (EN/HU) | ✅ |
+| Admin Dashboard | ✅ |
+| Admin Delete Products | ✅ |
+| View as User Mode | ✅ |
+| FineTunePanel | ✅ |
+| AI Analysis | ✅ |
+| Design System | ✅ |
+| Store Freshness | ✅ |
 
-### Authentication
-- [x] Google OAuth via Better-Auth
-- [x] Anonymous user support (localStorage UUID)
-- [x] Vote migration from anonymous to registered accounts
-- [x] Session management
+## Admin Features
 
-### Voting System
-- [x] Safety/Taste/Price voting with weighted averages
-- [x] Store and GPS tagging
-- [x] Transactional vote updates
-- [x] Combined product creation + voting flow
+- ✅ Email-based admin whitelist
+- ✅ AdminToolbar with impersonation toggle
+- ✅ AdminProductList with delete buttons
+- ✅ deleteProduct mutation (cascades votes)
+- ✅ Recalculate product stats
 
-### Gamification
-- [x] Points calculation engine
-- [x] Badge awarding logic
-- [x] Streak tracking
-- [x] ScoutCard UI in header
-- [x] Profile page with stats
+## Environment Setup
 
-### Internationalization
-- [x] EN/HU translation files
-- [x] useTranslations hook
-- [x] Language switcher component
-- [x] localStorage persistence
+```bash
+# Convex
+npx convex env set BETTER_AUTH_SECRET $(openssl rand -base64 32)
+npx convex env set SITE_URL http://localhost:3000
+npx convex env set GOOGLE_CLIENT_ID "your-id.apps.googleusercontent.com"
+npx convex env set GOOGLE_CLIENT_SECRET "your-secret"
+```
 
-### Admin Features
-- [x] isAdmin detection from profiles
-- [x] AdminToolbar component
-- [x] Impersonation mode (useImpersonate)
+## Google OAuth Redirect URIs
 
-### Scheduled Maintenance
-- [x] Time decay cron job (daily at midnight UTC)
-
-### UI/UX
-- [x] Matrix chart (Vibe & Value modes)
-- [x] Product list with thumbnails
-- [x] Product search
-- [x] Image upload dialog
-- [x] Dynamic header buttons
-
-## 🟡 Partially Complete
-
-### 1. FineTunePanel
-- **Status**: Not ported
-- **Description**: Draggable dot interface for precise vote adjustment
-- **Priority**: Medium
-
-### 2. Design System Alignment
-- **Status**: Partial
-- **Description**: CSS variables, fonts (Space Grotesk, Inter) need syncing with g-matrix
-- **Priority**: Low
-
-### 3. Store Freshness Indicators
-- **Status**: Not implemented
-- **Description**: Opacity fade based on `lastSeenAt` (30+ days = 30%, 7+ days = 60%)
-- **Priority**: Low
-
-## 🔴 Known Issues
-
-### 1. Google OAuth Configuration
-- **Issue**: Requires correct redirect URIs in Google Cloud Console
-- **Fix**: Add `https://<deployment>.convex.site/api/auth/callback/google`
-
-### 2. Chart Dimension Warnings
-- **Issue**: Console warnings about width(-1) and height(-1)
-- **Impact**: Visual only, doesn't affect functionality
-
-## 📊 Feature Parity Summary
-
-| Category | g-matrix | g-convex | Status |
-|----------|----------|----------|--------|
-| Auth (Google) | ✅ | ✅ | Complete |
-| Anonymous Voting | ✅ | ✅ | Complete |
-| Weighted Votes | ✅ | ✅ | Complete |
-| Time Decay | ✅ | ✅ | Complete |
-| Gamification | ✅ | ✅ | Complete |
-| i18n | ✅ | ✅ | Complete |
-| Admin Dashboard | ✅ | ⚠️ | Basic |
-| FineTunePanel | ✅ | ❌ | Missing |
-| AI Analysis | ✅ | ✅ | Complete |
+```
+http://localhost:3000/api/auth/callback/google
+https://<deployment>.convex.site/api/auth/callback/google
+```

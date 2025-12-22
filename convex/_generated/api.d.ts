@@ -16,6 +16,7 @@ import type * as lib_config from "../lib/config.js";
 import type * as lib_gamification from "../lib/gamification.js";
 import type * as migrations from "../migrations.js";
 import type * as products from "../products.js";
+import type * as seed from "../seed.js";
 import type * as users from "../users.js";
 import type * as votes from "../votes.js";
 
@@ -34,6 +35,7 @@ declare const fullApi: ApiFromModules<{
   "lib/gamification": typeof lib_gamification;
   migrations: typeof migrations;
   products: typeof products;
+  seed: typeof seed;
   users: typeof users;
   votes: typeof votes;
 }>;

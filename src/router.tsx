@@ -5,6 +5,7 @@ import { ConvexQueryClient } from '@convex-dev/react-query'
 import { ConvexBetterAuthProvider } from '@convex-dev/better-auth/react'
 import { routeTree } from './routeTree.gen'
 import { authClient } from './lib/auth-client'
+import { ImpersonateProvider } from './hooks/use-impersonate'
 
 export function getRouter() {
   const CONVEX_URL = (import.meta as any).env.VITE_CONVEX_URL!
@@ -38,7 +39,9 @@ export function getRouter() {
             client={convexQueryClient.convexClient}
             authClient={authClient}
         >
-          {children}
+          <ImpersonateProvider>
+            {children}
+          </ImpersonateProvider>
         </ConvexBetterAuthProvider>
       ),
     }),
@@ -47,3 +50,4 @@ export function getRouter() {
 
   return router
 }
+

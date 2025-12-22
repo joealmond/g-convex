@@ -7,41 +7,38 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { useState, useCallback }from 'react';
+import { useState, useCallback } from 'react';
 import type { Product, Vote } from '@/lib/types';
 import { ProductVibeChart } from './product-vibe-chart';
 import { DraggableDot } from './draggable-dot';
-// import { doc, runTransaction, serverTimestamp } from 'firebase/firestore';
-// import { useFirestore } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
-// import { errorEmitter } from '@/firebase/error-emitter';
-// import {
-//   FirestorePermissionError,
-//   type SecurityRuleContext,
-// } from '@/firebase/errors';
 import { Slider } from '../ui/slider';
 import { Label } from '../ui/label';
 import { Button } from '../ui/button';
 import { useTranslations } from '@/lib/i18n';
+import { useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
+import { useCurrentUser } from '@/hooks/use-current-user';
+import type { Id } from '../../../convex/_generated/dataModel';
 
 interface FineTunePanelProps {
   product: Product;
   initialVote: Vote | null;
+  productId: Id<"products">;
 }
 
-export function FineTunePanel({ product, initialVote }: FineTunePanelProps) {
+export function FineTunePanel({ initialVote, productId }: FineTunePanelProps) {
   const [vibe, setVibe] = useState({
     safety: initialVote?.safety ?? 50,
     taste: initialVote?.taste ?? 50,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // const firestore = useFirestore();
   const { toast } = useToast();
   const t = useTranslations('FineTunePanel');
+  const { userId } = useCurrentUser();
   
-  // Use a placeholder or anonymous ID since auth is disabled
-  const userId = `anonymous_${Date.now()}`;
-
+  // Convex mutation for casting vote
+  const castVote = useMutation(api.votes.castVote);
 
   const handleVibeChange = (newVibe: {
     safety: number;
@@ -55,21 +52,32 @@ export function FineTunePanel({ product, initialVote }: FineTunePanelProps) {
   }
 
   const handleSubmit = useCallback(async () => {
-    if (!userId || !initialVote) return;
+    if (!userId) return;
     setIsSubmitting(true);
 
     try {
-      console.log("Mock fine-tune submit", { vibe, product });
+      await castVote({
+        productId,
+        safety: vibe.safety,
+        taste: vibe.taste,
+        userId,
+      });
+      
       toast({
         title: t('fineTuneComplete'),
         description: t('fineTuneCompleteDesc')
-      })
+      });
     } catch (e: any) {
-        console.error(e);
+      console.error('Fine-tune submit error:', e);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: e.message || 'Failed to submit fine-tuned vote'
+      });
     } finally {
       setIsSubmitting(false);
     }
-  }, [userId, product.id, product.voteCount, product.avgSafety, product.avgTaste, initialVote, vibe, toast]);
+  }, [userId, productId, vibe, castVote, toast, t]);
 
   return (
     <Card>
@@ -114,7 +122,7 @@ export function FineTunePanel({ product, initialVote }: FineTunePanelProps) {
         </div>
       </CardContent>
       <CardFooter>
-        <Button onClick={handleSubmit} disabled={isSubmitting} className="w-full">
+        <Button onClick={handleSubmit} disabled={isSubmitting || !userId} className="w-full">
             {isSubmitting ? t('submitting') : t('submitButton')}
         </Button>
       </CardFooter>

@@ -4,11 +4,13 @@ import { convexQuery } from '@convex-dev/react-query'
 import { api } from '../../convex/_generated/api'
 import { useState, useMemo } from 'react'
 import { ProductList } from '@/components/dashboard/product-list'
+import { AdminProductList } from '@/components/dashboard/admin-product-list'
 import { ProductSearch } from '@/components/dashboard/product-search'
 import { MatrixChart, type ChartMode } from '@/components/dashboard/matrix-chart'
 import { Button } from '@/components/ui/button'
 import { Loader2, MapPinned } from 'lucide-react'
 import { useGeolocation } from '@/hooks/use-geolocation'
+import { useAdmin } from '@/hooks/use-admin'
 import type { Product } from '@/lib/types'
 
 // Mock translations
@@ -71,6 +73,7 @@ function Home() {
     
     // Kept the hook as is (client-side)
     const { coords, loading: geoLoading, requestLocation } = useGeolocation();
+    const { isAdmin } = useAdmin();
 
     const filteredData = useMemo(() => {
         if (!products) return [];
@@ -211,12 +214,21 @@ function Home() {
             
             <div className="lg:col-span-1 flex flex-col gap-6">
                  <ProductSearch searchTerm={searchTerm} onSearchTermChange={setSearchTerm} />
-                 <ProductList
-                  chartData={filteredData}
-                  loading={false}
-                  onItemClick={handleItemClick}
-                  highlightedProduct={highlightedProduct}
-                />
+                 {isAdmin ? (
+                   <AdminProductList
+                     chartData={filteredData}
+                     loading={false}
+                     onItemClick={handleItemClick}
+                     highlightedProduct={highlightedProduct}
+                   />
+                 ) : (
+                   <ProductList
+                     chartData={filteredData}
+                     loading={false}
+                     onItemClick={handleItemClick}
+                     highlightedProduct={highlightedProduct}
+                   />
+                 )}
             </div>
         </div>
     );

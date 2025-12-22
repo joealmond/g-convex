@@ -103,7 +103,13 @@ export const migrateAnonymousVotes = mutation({
 
 /**
  * Check if the current user is an admin
+ * Uses email-based check for simplicity (configure ADMIN_EMAILS below)
  */
+const ADMIN_EMAILS = [
+  "jozsef.mandula@gmail.com",
+  // Add more admin emails here
+];
+
 export const isAdmin = query({
   args: {},
   handler: async (ctx) => {
@@ -112,9 +118,14 @@ export const isAdmin = query({
       return false;
     }
 
-    const userId = identity.subject;
+    // Check if user's email is in admin list
+    const email = identity.email;
+    if (email && ADMIN_EMAILS.includes(email)) {
+      return true;
+    }
 
-    // Find the user in the user table
+    // Fallback: check profile table for role
+    const userId = identity.subject;
     const user = await ctx.db
       .query("user")
       .withIndex("userId", q => q.eq("userId", userId))
@@ -124,7 +135,6 @@ export const isAdmin = query({
       return false;
     }
 
-    // Check the profile for admin role
     const profile = await ctx.db
       .query("profiles")
       .withIndex("by_user", (q) => q.eq("userId", user._id))
@@ -134,3 +144,47 @@ export const isAdmin = query({
   },
 });
 
+/**
+ * Set admin role for a user by email (run from dashboard or CLI)
+ */
+export const setAdminByEmail = mutation({
+  args: { email: v.string(), isAdmin: v.boolean() },
+  handler: async (ctx, args) => {
+    // Find user by email
+    const user = await ctx.db
+      .query("user")
+      .filter((q) => q.eq(q.field("email"), args.email))
+      .first();
+
+    if (!user) {
+      throw new Error(`User with email ${args.email} not found`);
+    }
+
+    // Find or create profile
+    let profile = await ctx.db
+      .query("profiles")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .first();
+
+    if (profile) {
+      await ctx.db.patch(profile._id, {
+        role: args.isAdmin ? "admin" : undefined,
+      });
+    } else {
+      await ctx.db.insert("profiles", {
+        userId: user._id,
+        points: 0,
+        badges: [],
+        totalVotes: 0,
+        newProductVotes: 0,
+        gpsVotes: 0,
+        storesTagged: [],
+        currentStreak: 0,
+        longestStreak: 0,
+        role: args.isAdmin ? "admin" : undefined,
+      });
+    }
+
+    return { success: true, email: args.email, isAdmin: args.isAdmin };
+  },
+});
