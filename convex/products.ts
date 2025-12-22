@@ -1,6 +1,5 @@
-import { query, mutation } from "./_generated/server";
+import { query } from "./_generated/server";
 import { v } from "convex/values";
-import { auth } from "./auth"; // Helper if we create one, or use ctx.auth directly?
 // Better-auth integration usually implies we use ctx.auth for user ID.
 
 export const list = query({

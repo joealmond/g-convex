@@ -128,18 +128,40 @@ export default defineSchema({
 
   votes: defineTable({
     productId: v.id("products"),
-    userId: v.id("user"), // referencing auth user -- actually "users" table now exists!
-    voteType: v.string(), // "vibe" or "value"
-    value: v.number(),
+    userId: v.id("user"),
+    isRegistered: v.boolean(),
+    
+    // Core Vibe
+    safety: v.number(),
+    taste: v.number(),
+    
+    // Optional Value/Context
+    price: v.optional(v.number()),
+    storeName: v.optional(v.string()),
+    geoPoint: v.optional(v.object({ lat: v.number(), lng: v.number() })),
+    
     timestamp: v.number(),
+    updatedAt: v.optional(v.number()),
   }).index("by_product", ["productId"])
     .index("by_user_product", ["userId", "productId"]),
 
   profiles: defineTable({
     userId: v.id("user"),
-    points: v.number(),
-    badges: v.array(v.string()), // IDs of badges
+    name: v.optional(v.string()),
+    // Gamification Stats
+    points: v.number(), // Total Scout Points
+    badges: v.array(v.string()), // IDs of badges earned
+    
     totalVotes: v.number(),
+    newProductVotes: v.number(),
+    gpsVotes: v.number(),
+    storesTagged: v.array(v.string()), // List of unique store names
+    
+    currentStreak: v.number(),
+    longestStreak: v.number(),
+    lastVoteDate: v.optional(v.string()), // ISO string for date comparison
+    votesToday: v.optional(v.number()), // Helper for daily limits/streaks
+    
     role: v.optional(v.string()), // "admin", "user"
   }).index("by_user", ["userId"]),
 });

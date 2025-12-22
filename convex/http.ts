@@ -8,7 +8,7 @@ import { httpAction } from "./_generated/server";
 http.route({
   pathPrefix: "/api/auth/",
   method: "POST",
-  handler: httpAction(async (ctx, request) => {
+  handler: httpAction(async (_ctx, request) => {
     return auth.handler(request);
   }),
 });
@@ -16,7 +16,7 @@ http.route({
 http.route({
   pathPrefix: "/api/auth/",
   method: "GET",
-  handler: httpAction(async (ctx, request) => {
+  handler: httpAction(async (_ctx, request) => {
     return auth.handler(request);
   }),
 });

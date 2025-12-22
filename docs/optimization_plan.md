@@ -19,33 +19,32 @@ We can remove the following libraries from `g-matrix` as their functionality is 
 ### A. Real-time Gamification
 **Old Way**: Transactional updates in Firebase.
 **New Way**: 
-- Use **Convex Internal Mutations** to decouple voting speed from gamification logic.
-- `castVote` -> triggers `internal.gamification.awardPoints` asynchronously.
-- UI updates point balance in real-time without refreshing.
+- **Convex Internal Mutations**: Decouples complex logic if needed.
+- [x] **Implemented**: `castVote` now triggers gamification updates transactionally, ensuring data consistency.
 
 ### B. Intelligent Caching & Aggregation
 **Old Way**: Manual `avgSafety`, `avgTaste` fields updated on every write.
 **New Way**: 
-- Keep the aggregate fields for performance (Convex indexing).
-- Use **Convex Crons** for the Time Decay logic (run nightly).
-- Use `convex-helpers` specifically `aggregates` if simple counting is needed, but for weighted averages, custom mutations are best.
+- [x] **Implemented**: Keep aggregate fields on the `products` table for performance.
+- **Pending**: Use **Convex Crons** for the Time Decay logic (run nightly).
 
 ### C. Type-Safe AI Actions
 **Old Way**: Server Action with generic `fetch` or SDK.
 **New Way**: 
-- **Convex Action**: `convex/actions.ts:analyzeImage`
-- Returns type-safe `ImageAnalysisState` object.
-- Runs on V8 isolated environment (fast startup).
+- [x] **Implemented**: `convex/ai.ts` uses Google Gemini SDK.
+- [x] **Implemented**: Returns structured, type-safe data (Risk Level, Tags, etc.) directly to the frontend.
 
 ### D. Simplified Auth State
 **Old Way**: Firebase Context Providers + complex User streams.
 **New Way**: 
-- `ConvexAuthProvider` (wrapping Better-Auth).
-- `useQuery(api.users.current)` gives fully typed user profile + gamification stats instantly available anywhere.
+- [x] **Implemented**: `ConvexAuthProvider` wrapping Better-Auth.
+- [x] **Implemented**: Role and Gamification stats attached to `profiles` table, easily queried.
 
-## 3. Next Steps Execution Plan
+## 3. Execution Status
 
-1.  **Backend**: Implement `convex/gamification.ts` and `convex/crons.ts`.
-2.  **AI**: Move Gemini logic to `convex/actions/ai.ts`.
-3.  **Frontend**: Update `VotingPanel` to include Location/Price inputs.
-4.  **Migration**: Write a script to port existing Firebase data to Convex (if needed).
+1.  [x] **Backend**: Implement `convex/votes.ts` (Weighted voting) and `convex/lib/gamification.ts`.
+2.  [x] **AI**: Move Gemini logic to `convex/ai.ts`.
+3.  [x] **Frontend**: Update `VotingPanel` to include Location/Price inputs and AI integration.
+4.  [x] **Migration**: Basic migration scripts in `convex/migrations.ts` created.
+5.  [ ] **Maintenance**: Implement `convex/crons.ts` for time decay.
+6.  [ ] **Profile UI**: Build the user profile page to display the new gamification stats.

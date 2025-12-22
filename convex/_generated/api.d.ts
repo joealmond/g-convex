@@ -8,8 +8,11 @@
  * @module
  */
 
+import type * as ai from "../ai.js";
 import type * as auth from "../auth.js";
 import type * as http from "../http.js";
+import type * as lib_config from "../lib/config.js";
+import type * as lib_gamification from "../lib/gamification.js";
 import type * as migrations from "../migrations.js";
 import type * as products from "../products.js";
 import type * as votes from "../votes.js";
@@ -21,8 +24,11 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  ai: typeof ai;
   auth: typeof auth;
   http: typeof http;
+  "lib/config": typeof lib_config;
+  "lib/gamification": typeof lib_gamification;
   migrations: typeof migrations;
   products: typeof products;
   votes: typeof votes;

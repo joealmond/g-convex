@@ -80,7 +80,7 @@ function ProductPage() {
             await castVote({
                 productId: product._id,
                 voteType: chartMode,
-                value: 0, // Use specific fields below
+
                 safety: customVibe.safety,
                 taste: customVibe.taste
             })

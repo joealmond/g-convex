@@ -5,9 +5,8 @@ import { ProductSearch } from '@/components/dashboard/product-search';
 import { AdminProductList } from '@/components/dashboard/admin-product-list';
 import { useMemo, useState } from 'react';
 import type { Product } from '@/lib/types';
-import { Button } from '@/components/ui/button';
-import { seedRandomPrices } from '@/app/actions';
-import { useToast } from '@/hooks/use-toast';
+// import { Button } from '@/components/ui/button';
+// import { useToast } from '@/hooks/use-toast';
 
 interface AdminDashboardProps {
   chartData: Product[];
@@ -19,8 +18,7 @@ export function AdminDashboard({ chartData, loading }: AdminDashboardProps) {
     null
   );
   const [searchTerm, setSearchTerm] = useState('');
-  const [seeding, setSeeding] = useState(false);
-  const { toast } = useToast();
+  // const { toast } = useToast();
 
   const filteredData = useMemo(() => {
     if (!chartData) return [];
@@ -44,32 +42,6 @@ export function AdminDashboard({ chartData, loading }: AdminDashboardProps) {
     setHighlightedProduct(productName);
   };
 
-  const handleSeedPrices = async () => {
-    setSeeding(true);
-    try {
-      const result = await seedRandomPrices();
-      if (result.success) {
-        toast({
-          title: 'Prices Seeded',
-          description: `Successfully seeded ${result.processed} products with random prices.`,
-        });
-      } else {
-        toast({
-          title: 'Seeding Failed',
-          description: `Processed ${result.processed}, Errors: ${result.errors}`,
-          variant: 'destructive',
-        });
-      }
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
-    }
-    setSeeding(false);
-  };
-
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2">
@@ -84,9 +56,6 @@ export function AdminDashboard({ chartData, loading }: AdminDashboardProps) {
           searchTerm={searchTerm}
           onSearchTermChange={setSearchTerm}
         />
-        <Button onClick={handleSeedPrices} disabled={seeding} variant="outline">
-          {seeding ? 'Seeding...' : 'Seed Random Prices'}
-        </Button>
         <AdminProductList
           chartData={filteredData || []}
           loading={loading}

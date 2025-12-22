@@ -28,10 +28,13 @@ import {
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-// import { useGeolocation } from '@/hooks/use-geolocation';
+import { useGeolocation } from '@/hooks/use-geolocation';
+
 import { Checkbox } from '@/components/ui/checkbox';
 import type { Vote, Product } from '@/lib/types';
 import type { ImageAnalysisState } from '@/lib/actions-types';
+import { useMutation } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 import { useTranslations } from '@/lib/i18n';
 
 
@@ -88,11 +91,9 @@ export function VotingPanel({ product, productName, analysisResult, onVibeSubmit
   const [customStore, setCustomStore] = useState<string>('');
   const [useLocation, setUseLocation] = useState<boolean>(false);
   const { toast } = useToast();
+  const { coords, loading: geoLoading, error: geoError, requestLocation } = useGeolocation();
   // const { coords, loading: geoLoading, error: geoError, requestLocation } = useGeolocation();
-  const coords = null;
-  const geoLoading = false;
-  const geoError = null;
-  const requestLocation = () => {};
+
   const t = useTranslations('VotingPanel');
 
   const effectiveStore = selectedStore === 'custom' ? customStore : selectedStore;
@@ -110,72 +111,73 @@ export function VotingPanel({ product, productName, analysisResult, onVibeSubmit
     setPriceVote(current => (current === vote ? null : vote));
   };
   
+
+
+  // ... (previous state hooks)
+  
+  const castVoteMutation = useMutation(api.votes.castVote);
+  const createProductMutation = useMutation(api.votes.createProductAndVote);
+
   const handleSubmit = async () => {
-    if (!safetyVote || !tasteVote || !productName || !analysisResult) return;
+    if (!safetyVote || !tasteVote || !productName) return;
     
-    const userId = `anonymous_${Date.now()}`;
-    const productId = productName.toLowerCase().replace(/[^a-z0-9]/g, '-');
-
-    // Import and call server action
-    const { submitVote } = await import('@/app/actions');
+    // Determine effective store
+    const effectiveStore = selectedStore === 'custom' ? customStore : selectedStore;
     
-    const result = await submitVote({
-      productId,
-      productName,
-      imageUrl: analysisResult.imageUrl || '',
-      aiAnalysis: analysisResult.aiAnalysis || null,
-      userId,
-      isRegistered: false,
-      safety: voteMapping.safety[safetyVote],
-      taste: voteMapping.taste[tasteVote],
-      price: priceVote ?? undefined,
-      storeName: effectiveStore || undefined,
-      geoPoint: (useLocation && coords) ? coords : undefined,
-    });
+    try {
+      let result;
+      const commonArgs = {
+        safety: voteMapping.safety[safetyVote],
+        taste: voteMapping.taste[tasteVote],
+        price: priceVote ?? undefined,
+        storeName: effectiveStore || undefined,
+        geoPoint: (useLocation && coords) ? coords : undefined,
+      };
 
-    if (result.success) {
-      // Show base success toast
-      toast({
-        title: t('vibeSubmitted'),
-        description: t('vibeSubmittedDesc', { productName }),
-      });
-      
-      // Show points earned if any
-      if (result.pointsEarned && result.pointsEarned > 0) {
-        setTimeout(() => {
-          toast({
-            title: `+${result.pointsEarned} Scout Points! 🎉`,
-            description: 'Keep voting to earn badges!',
+      if (product && product._id) {
+          // Existing product
+          const response = await castVoteMutation({
+              productId: product._id as any, // Cast if type mismatch from prop
+              ...commonArgs
           });
-        }, 500);
-      }
-      
-      // Show badge unlocks
-      if (result.newBadges && result.newBadges.length > 0) {
-        setTimeout(() => {
-          toast({
-            title: '🏆 Badge Unlocked!',
-            description: `You earned: ${result.newBadges!.join(', ')}`,
+          result = response;
+      } else {
+          // New product
+          if (!analysisResult) return;
+          const response = await createProductMutation({
+              name: productName,
+              mainImage: analysisResult.imageUrl || "", // This should be storageId or URL
+              aiAnalysis: analysisResult.result,
+              ...commonArgs
           });
-        }, 1500);
+          result = response;
       }
 
-      if (onVibeSubmit) {
-        onVibeSubmit({
-          userId,
-          safety: voteMapping.safety[safetyVote],
-          taste: voteMapping.taste[tasteVote],
-          price: priceVote ?? undefined,
-          storeName: effectiveStore || undefined,
-          isRegistered: false,
-          votedAt: new Date() as any,
-          createdAt: new Date() as any,
-        } as Vote);
+      if (result.success) {
+        toast({
+          title: t('vibeSubmitted'),
+          description: t('vibeSubmittedDesc', { productName }),
+        });
+        
+        // Gamification feedback would come from mutation response or subscription
+        // For now, simple success message
+        
+        if (onVibeSubmit) {
+            // ... invoke callback
+             onVibeSubmit({
+                // userId, // We don't have userId here easily without auth hook, skip or mock
+                ...commonArgs,
+                isRegistered: false, // Optimistic
+                votedAt: new Date(),
+                createdAt: new Date(),
+            } as any);
+        }
       }
-    } else {
+    } catch (error: any) {
+      console.error(error);
       toast({
         title: 'Error',
-        description: result.error || 'Failed to submit vote',
+        description: error.message || 'Failed to submit vote',
         variant: 'destructive',
       });
     }

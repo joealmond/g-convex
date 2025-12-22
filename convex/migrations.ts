@@ -119,11 +119,27 @@ export const importVotes = mutation({
     handler: async (ctx, args) => {
         let count = 0;
         for (const v of args.votes) {
+            // Map legacy simple value to safety/taste/price
+            let safety = 50;
+            let taste = 50;
+            let price: number | undefined = undefined;
+
+            if (v.voteType === 'vibe' || v.voteType === 'safety' || v.voteType === 'taste') {
+                safety = v.value;
+                taste = v.value;
+            } else if (v.voteType === 'value' || v.voteType === 'price') {
+                price = v.value;
+            }
+
             await ctx.db.insert("votes", {
                 productId: v.productId,
                 userId: v.userId,
-                voteType: v.voteType,
-                value: v.value,
+                isRegistered: true, // Assume imported votes are registered
+                safety,
+                taste,
+                price,
+                // voteType: v.voteType, // Removed from schema
+                // value: v.value,       // Removed from schema
                 timestamp: v.timestamp,
             });
             count++;
@@ -151,6 +167,11 @@ export const importProfiles = mutation({
                 badges: p.badges,
                 totalVotes: p.totalVotes,
                 role: p.role,
+                newProductVotes: 0,
+                gpsVotes: 0,
+                storesTagged: [],
+                currentStreak: 0,
+                longestStreak: 0,
             });
             count++;
         }
