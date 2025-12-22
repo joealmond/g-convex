@@ -1,0 +1,30 @@
+# Project Rules
+
+## Stack
+- **Framework**: TanStack Start (React Router)
+- **Backend**: Convex (Backend-as-a-Service)
+- **Auth**: Better Auth (Convex Adapter) + Better Auth MCP Plugin
+- **UI**: Shadcn UI (Zinc, New York style)
+- **Styles**: Tailwind CSS
+- **Package Manager**: npm
+
+## Best Practices
+
+### Convex
+- **Data Writes**: ALWAYS use `useMutation` from `convex/react` for data modification. DO NOT use TanStack Server Functions for mutations (they delay reactivity).
+- **Data Reads**: Use `useSuspenseQuery` from `@convex-dev/react-query` for SSR-compatible data fetching.
+- **Access Control**: Use `ctx.auth` in mutations/queries to verify access.
+- **Validation**: Use `convex/values` validators (`v.string()`, etc.) for all arguments.
+
+### TanStack Start
+- **Routing**: Use file-based routing in `app/routes`.
+- **Naming**: `index.tsx` for root, `$param.tsx` for dynamic segments.
+- **Server Functions**: Use for non-Convex server-side logic if needed, but prefer Convex Actions for backend logic.
+
+### UI
+- Use `shadcn/ui` components from `@/components/ui`.
+- Use logical grouping for components.
+
+### Authentication
+- Use `better-auth` client for frontend auth state.
+- Use `ctx.auth.getUserIdentity()` in Convex functions.
