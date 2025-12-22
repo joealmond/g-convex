@@ -36,6 +36,7 @@ import type { ImageAnalysisState } from '@/lib/actions-types';
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { useTranslations } from '@/lib/i18n';
+import { useCurrentUser } from '@/hooks/use-current-user';
 
 
 const FireIcon = () => <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary"><path d="M14.5 9.5c0 .938-.443 1.75-1.125 2.25-.682.5-1.125 1.5-1.125 2.25M12 7.5c0 1.5-1 3-2 3s-2-1.5-2-3c0-1.5 1-3 2-3s2 1.5 2 3z"/><path d="M10.5 15.5c-1.5-1-2.5-2.5-2.5-4.5 0-2.5 2-5 5-5s5 2.5 5 5c0 2-1 3.5-2.5 4.5"/><path d="M12.5 18.5c-1.294-.97-2-2.36-2-3.5h-1c0 1.5.706 2.53 2 3.5s2 1.5 2 2.5c0 .5-.5 1-1 1s-1-.5-1-1c0-.5.5-1 1-1h1c0 1.105-1.119 2-2.5 2S9.5 21.605 9.5 20.5s1.119-2 2.5-2 2.5.895 2.5 2z"/></svg>;
@@ -92,7 +93,9 @@ export function VotingPanel({ product, productName, analysisResult, onVibeSubmit
   const [useLocation, setUseLocation] = useState<boolean>(false);
   const { toast } = useToast();
   const { coords, loading: geoLoading, error: geoError, requestLocation } = useGeolocation();
-  // const { coords, loading: geoLoading, error: geoError, requestLocation } = useGeolocation();
+
+  // Get current user (authenticated or anonymous)
+  const { userId, isRegistered } = useCurrentUser();
 
   const t = useTranslations('VotingPanel');
 
@@ -137,7 +140,8 @@ export function VotingPanel({ product, productName, analysisResult, onVibeSubmit
       if (product && product._id) {
           // Existing product
           const response = await castVoteMutation({
-              productId: product._id as any, // Cast if type mismatch from prop
+              productId: product._id as any,
+              userId, // Pass current user ID (authenticated or anonymous)
               ...commonArgs
           });
           result = response;
@@ -146,8 +150,9 @@ export function VotingPanel({ product, productName, analysisResult, onVibeSubmit
           if (!analysisResult) return;
           const response = await createProductMutation({
               name: productName,
-              mainImage: analysisResult.imageUrl || "", // This should be storageId or URL
+              mainImage: analysisResult.imageUrl || "",
               aiAnalysis: analysisResult.result,
+              userId, // Pass current user ID (authenticated or anonymous)
               ...commonArgs
           });
           result = response;
@@ -159,15 +164,22 @@ export function VotingPanel({ product, productName, analysisResult, onVibeSubmit
           description: t('vibeSubmittedDesc', { productName }),
         });
         
-        // Gamification feedback would come from mutation response or subscription
-        // For now, simple success message
+        // Show points earned toast for registered users (gamification feedback)
+        // Note: Full gamification response can be added when mutations return these values
+        if (isRegistered) {
+          setTimeout(() => {
+            toast({
+              title: '+10 Scout Points! 🎉',
+              description: 'Keep voting to earn badges!',
+            });
+          }, 500);
+        }
         
         if (onVibeSubmit) {
-            // ... invoke callback
-             onVibeSubmit({
-                // userId, // We don't have userId here easily without auth hook, skip or mock
+            onVibeSubmit({
                 ...commonArgs,
-                isRegistered: false, // Optimistic
+                userId,
+                isRegistered,
                 votedAt: new Date(),
                 createdAt: new Date(),
             } as any);

@@ -169,6 +169,7 @@ async function applyVoteLogic(
 export const castVote = mutation({
   args: {
     productId: v.id("products"),
+    userId: v.optional(v.string()), // Client-provided anonymous ID
     voteType: v.optional(v.string()), 
     safety: v.number(),
     taste: v.number(),
@@ -178,8 +179,10 @@ export const castVote = mutation({
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    const userId = (identity?.subject || "anonymous") as Id<"user">;
-    return await applyVoteLogic(ctx, args.productId, userId, !!identity, args);
+    // Use authenticated user ID if available, otherwise use client-provided anonymous ID
+    const userId = (identity?.subject || args.userId || "anonymous") as Id<"user">;
+    const isRegistered = !!identity;
+    return await applyVoteLogic(ctx, args.productId, userId, isRegistered, args);
   }
 });
 
@@ -188,6 +191,7 @@ export const createProductAndVote = mutation({
     name: v.string(),
     mainImage: v.string(),
     aiAnalysis: v.optional(v.any()), 
+    userId: v.optional(v.string()), // Client-provided anonymous ID
     // Vote args
     safety: v.number(),
     taste: v.number(),
@@ -197,7 +201,8 @@ export const createProductAndVote = mutation({
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    const userId = (identity?.subject || "anonymous") as Id<"user">;
+    // Use authenticated user ID if available, otherwise use client-provided anonymous ID
+    const userId = (identity?.subject || args.userId || "anonymous") as Id<"user">;
     
     // Check if product exists by name
     const existing = await ctx.db.query("products")

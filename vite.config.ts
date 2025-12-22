@@ -8,6 +8,10 @@ export default defineConfig({
   server: {
     port: 3000,
   },
+  // SSR config for @convex-dev/better-auth (per official docs)
+  ssr: {
+    noExternal: ['@convex-dev/better-auth'],
+  },
   plugins: [
     tailwindcss(),
     tsConfigPaths({
@@ -17,3 +21,4 @@ export default defineConfig({
     viteReact(),
   ],
 })
+

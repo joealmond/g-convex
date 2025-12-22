@@ -32,8 +32,8 @@ export function ImageUploadDialog({ children, open, onOpenChange }: ImageUploadD
     // Store in session storage as a fallback
     sessionStorage.setItem('identifiedProduct', JSON.stringify(analysisResult));
 
-    // Navigate to the vibe check page with the product name and image URL
-    const url = `/vibe-check/${encodeURIComponent(analysisResult.productName || 'Unnamed Product')}`;
+    // Navigate to the product page with the product name
+    const url = `/product/${encodeURIComponent(analysisResult.productName || 'Unnamed Product')}`;
     navigate({ to: url });
   };
   

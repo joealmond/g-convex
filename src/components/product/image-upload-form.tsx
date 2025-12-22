@@ -39,7 +39,7 @@ export function ImageUploadForm({ onProductIdentified }: ImageUploadFormProps) {
   const [state, formAction] = useActionState<ImageAnalysisState, FormData>(analyzeAndUploadProduct, initialState);
 
   useEffect(() => {
-    if (state.success && state.productName) {
+    if (state.success) {
         if (onProductIdentified) {
             onProductIdentified(state);
         } else {

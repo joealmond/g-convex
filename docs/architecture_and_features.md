@@ -2,68 +2,99 @@
 
 This document outlines the current architecture and feature implementation of the `g-convex` application.
 
+> **Last Updated**: December 2024
+
 ## 1. Core Architecture
 
 ### Backend (Convex)
-- **Database**: Relational-style using Convex tables (`products`, `votes`, `profiles`, `users`).
-- **Logic**: Type-safe mutations and actions found in `convex/`.
-- **Search**: Leverages Convex's built-in indexing (e.g., `by_name`, `by_user_product`).
+- **Database**: Relational-style tables (`products`, `votes`, `profiles`, `user`, `session`, `account`, `verification`)
+- **Logic**: Type-safe mutations, queries, and actions in `convex/`
+- **Search**: Built-in indexing (e.g., `by_name`, `by_user_product`, `by_user`)
+- **Auth**: Better-Auth component with Google OAuth integration
+- **Crons**: Scheduled jobs for time decay in `convex/crons.ts`
 
 ### Frontend (TanStack Start)
-- **Framework**: Vite + TanStack Start.
-- **State Management**: Convex React Client (`useQuery`, `useMutation`).
-- **Routing**: File-based routing with `@tanstack/react-router`.
+- **Framework**: Vite + TanStack Start + React 19
+- **State Management**: Convex React Client (`useQuery`, `useMutation`) + TanStack Query
+- **Routing**: File-based routing with `@tanstack/react-router`
+- **UI**: Shadcn/ui components with Radix primitives
+- **Charts**: Recharts for Matrix visualization
+- **i18n**: Custom implementation with EN/HU translations
 
 ## 2. Feature Implementation
 
-### A. Voting System
+### A. Authentication System
+**Files**: `convex/auth.ts`, `convex/auth.config.ts`, `convex/http.ts`, `src/lib/auth-client.ts`
+
+- **Provider**: Better-Auth with Convex adapter
+- **OAuth**: Google Sign-In configured
+- **Anonymous Users**: UUID-based localStorage IDs for guest voting
+- **Migration**: `migrateAnonymousVotes` mutation transfers votes on signup
+
+### B. Voting System
 **File**: `convex/votes.ts`
 
-The voting system is designed to be robust and weighted:
-- **Weighted Averages**: Registered user votes carry more weight (80%) compared to anonymous votes (20%).
-- **Transactional Consistency**: When a vote is cast:
-  1. Old vote (if any) is subtracted.
-  2. New vote is added.
-  3. Product averages (Safety, Taste, Price) are recalculated immediately.
-- **Combined Flow**: The `createProductAndVote` mutation allows users to create a product and cast their first vote in a single atomic operation.
+- **Weighted Averages**: Registered votes 2x weight vs anonymous
+- **Transactional Consistency**: Atomic vote updates with product recalculation
+- **Combined Flow**: `createProductAndVote` for new products
+- **Gamification Integration**: Points/badges awarded on vote
 
-### B. Gamification
-**File**: `convex/lib/gamification.ts`, `convex/votes.ts`
+### C. Gamification
+**Files**: `src/lib/gamification.ts`, `convex/votes.ts`
 
-Gamification is tightly integrated into the voting loop:
-- **Triggers**: Every valid vote by a registered user triggers `processGamification`.
-- **Stats Tracked**:
-  - `points`: Total score based on actions.
-  - `streaks`: Consecutive days of activity.
-  - `badges`: Unlocked achievements (stored as ID strings).
-- **Point System**:
-  - Base Vote: 10 pts
-  - Price/Location/Store info: Bonus points
-  - New Product Discovery: 25 pts
+- **Points**: Base 10 + bonuses for price/store/GPS/new products
+- **Streaks**: Consecutive daily voting tracked
+- **Badges**: 6 badges (first_scout, trailblazer, location_pro, etc.)
+- **UI**: ScoutCard in header popover, profile page
 
-### C. AI Product Analysis
+### D. AI Product Analysis
 **File**: `convex/ai.ts`
 
-Leverages Google Gemini 2.0 Flash for instant image recognition:
-1. **Input**: Image `storageId` from Convex file storage.
-2. **Process**: Sends image prompt to Gemini API.
-3. **Output**: Structured JSON containing:
-   - Partial Product Name
-   - Gluten-Free assessment (Boolean)
-   - Risk Level (Safe/Sketchy/Unsafe)
-   - Tags & Reasoning
+- **Model**: Google Gemini 2.0 Flash
+- **Input**: Image from Convex storage
+- **Output**: Product name, gluten-free status, risk level, tags
 
-### D. Data Schema
+### E. Internationalization
+**Files**: `src/lib/i18n.ts`, `src/locales/en.json`, `src/locales/hu.json`
+
+- **Languages**: English (EN) and Hungarian (HU)
+- **Storage**: Locale preference in localStorage
+- **Hook**: `useTranslations(namespace)` for component translations
+
+### F. Admin Features
+**Files**: `convex/users.ts`, `src/hooks/use-admin.ts`, `src/components/layout/admin-toolbar.tsx`
+
+- **Detection**: `isAdmin` query checks profile role
+- **Toolbar**: Floating admin badge with impersonation toggle
+- **Impersonation**: View app as different user for debugging
+
+## 3. Data Schema
 **File**: `convex/schema.ts`
 
-- **`products`**: Stores aggregates (`avgSafety`, `avgTaste`, `voteCount`) and metadata.
-- **`votes`**: Individual vote records per user/product. Indexed for fast lookup.
-- **`profiles`**: Gamification stats linked to `users`.
-- **`users`**: Auth identity and basic info (managed by Better-Auth usage).
+| Table | Purpose |
+|-------|---------|
+| `products` | Aggregated ratings, metadata, store availability |
+| `votes` | Individual vote records with timestamps |
+| `profiles` | Gamification stats (points, badges, streaks) |
+| `user` | Auth identity (managed by Better-Auth) |
+| `session` | Auth sessions |
+| `account` | OAuth account links |
 
-## 3. Environment & Config
-- **Auth**: Better-Auth handling `users` and sessions.
-## 4. Known Regressions
-- **Broken Navigation**: The image upload dialog redirects to a legacy `/vibe-check/` route instead of the current `/product/` route.
-- **Placeholder Login**: The `/login` route is currently a placeholder and needs to be connected to Better-Auth.
-- **Time Decay**: The automated time-decay logic for votes is defined in the roadmap but not yet active in Convex Crons.
+## 4. Scheduled Jobs
+**File**: `convex/crons.ts`
+
+- **Daily Time Decay**: Runs at midnight UTC, applies 0.5% decay to product averages
+
+## 5. Environment Configuration
+
+### Convex Environment Variables
+- `BETTER_AUTH_SECRET` - Encryption key for auth
+- `SITE_URL` - Application URL (http://localhost:3000)
+- `GOOGLE_CLIENT_ID` - OAuth client ID
+- `GOOGLE_CLIENT_SECRET` - OAuth client secret
+- `GOOGLE_GENERATIVE_AI_API_KEY` - Gemini API key
+
+### Client Environment (.env.local)
+- `VITE_CONVEX_URL` - Convex cloud URL (.convex.cloud)
+- `VITE_CONVEX_SITE_URL` - Convex site URL (.convex.site)
+- `VITE_SITE_URL` - Local dev URL

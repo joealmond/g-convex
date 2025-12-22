@@ -2,49 +2,71 @@
 
 This plan outlines how to leverage the new stack (Convex + TanStack Start) to simplify architecture and improve performance.
 
-## 1. Dependency Reduction (Throw Away)
+> **Last Updated**: December 2024
 
-We can remove the following libraries from `g-matrix` as their functionality is replaced by the platform:
+## 1. Dependency Reduction
 
-| Library | Replacement | Benefit |
-|---------|-------------|---------|
-| `firebase`, `firebase-admin` | **Convex** | Real-time database, Auth, Storage, and Functions in one type-safe platform. |
-| `@genkit-ai/*` | **Direct API Calls (fetch)** | Genkit is powerful but heavy. For simple image analysis, a direct call to Gemini API in a Convex Action is lighter and faster. |
-| `next-intl` | **Typesafe i18n** | Consider a lighter-weight i18n solution or native TanStack Router search params for simple locale handling. |
-| `swr` / `react-query` | **Convex React Client** | Convex handles caching, real-time subscriptions, and optimistic updates out of the box. (Note: `react-query` is still useful for non-Convex APIs). |
-| `zod` (Client-side) | **Convex Validators** | Convex `v` validators provide runtime validation at the API boundary, reducing need for heavy client-side schema duplication. |
+Libraries removed from g-matrix as their functionality is replaced:
+
+| Library | Replacement | Status |
+|---------|-------------|--------|
+| `firebase`, `firebase-admin` | **Convex** | ✅ Done |
+| `@genkit-ai/*` | **Direct Gemini API** | ✅ Done |
+| `next-intl` | **Custom i18n** | ✅ Done |
+| `swr` | **Convex React Client** | ✅ Done |
+| `zod` (Client-side) | **Convex Validators** | ✅ Done |
+
+**Kept**: `@tanstack/react-query` for non-Convex APIs and SSR hydration.
 
 ## 2. Architectural Improvements
 
 ### A. Real-time Gamification
-**Old Way**: Transactional updates in Firebase.
-**New Way**: 
-- **Convex Internal Mutations**: Decouples complex logic if needed.
-- [x] **Implemented**: `castVote` now triggers gamification updates transactionally, ensuring data consistency.
+- ✅ **Implemented**: `castVote` triggers gamification updates transactionally
+- ✅ **Implemented**: Points, badges, streaks updated atomically
 
 ### B. Intelligent Caching & Aggregation
-**Old Way**: Manual `avgSafety`, `avgTaste` fields updated on every write.
-**New Way**: 
-- [x] **Implemented**: Keep aggregate fields on the `products` table for performance.
-- **Pending**: Use **Convex Crons** for the Time Decay logic (run nightly).
+- ✅ **Implemented**: Aggregate fields on `products` table for fast reads
+- ✅ **Implemented**: Time decay cron job runs nightly
 
 ### C. Type-Safe AI Actions
-**Old Way**: Server Action with generic `fetch` or SDK.
-**New Way**: 
-- [x] **Implemented**: `convex/ai.ts` uses Google Gemini SDK.
-- [x] **Implemented**: Returns structured, type-safe data (Risk Level, Tags, etc.) directly to the frontend.
+- ✅ **Implemented**: `convex/ai.ts` uses Google Gemini SDK
+- ✅ **Implemented**: Structured response (productName, riskLevel, tags)
 
 ### D. Simplified Auth State
-**Old Way**: Firebase Context Providers + complex User streams.
-**New Way**: 
-- [x] **Implemented**: `ConvexAuthProvider` wrapping Better-Auth.
-- [x] **Implemented**: Role and Gamification stats attached to `profiles` table, easily queried.
+- ✅ **Implemented**: Better-Auth component with Convex adapter
+- ✅ **Implemented**: Role and gamification stats in `profiles` table
+- ✅ **Implemented**: Anonymous user support with vote migration
+
+### E. Internationalization
+- ✅ **Implemented**: Lightweight custom i18n with localStorage
+- ✅ **Implemented**: EN/HU translation files ported
 
 ## 3. Execution Status
 
-1.  [x] **Backend**: Implement `convex/votes.ts` (Weighted voting) and `convex/lib/gamification.ts`.
-2.  [x] **AI**: Move Gemini logic to `convex/ai.ts`.
-3.  [x] **Frontend**: Update `VotingPanel` to include Location/Price inputs and AI integration.
-4.  [x] **Migration**: Basic migration scripts in `convex/migrations.ts` created.
-5.  [ ] **Maintenance**: Implement `convex/crons.ts` for time decay.
-6.  [ ] **Profile UI**: Build the user profile page to display the new gamification stats.
+| Task | Status |
+|------|--------|
+| Backend: Weighted voting (`convex/votes.ts`) | ✅ Complete |
+| Backend: Gamification engine | ✅ Complete |
+| Backend: Time decay cron | ✅ Complete |
+| AI: Gemini analysis (`convex/ai.ts`) | ✅ Complete |
+| Auth: Better-Auth with Google OAuth | ✅ Complete |
+| Auth: Anonymous users | ✅ Complete |
+| Frontend: VotingPanel with store/GPS | ✅ Complete |
+| Frontend: ScoutCard in header | ✅ Complete |
+| Frontend: Profile page | ✅ Complete |
+| Frontend: i18n language switcher | ✅ Complete |
+| Frontend: Admin toolbar | ✅ Complete |
+| Migration: Firebase to Convex scripts | ✅ Complete |
+
+## 4. Performance Optimizations Applied
+
+- **Indexes**: `by_name`, `by_user`, `by_user_product` for fast queries
+- **Atomic Updates**: Single-transaction vote + gamification updates
+- **Lazy Loading**: TanStack Router code-splitting
+- **Real-time**: Convex subscriptions instead of polling
+
+## 5. Remaining Optimizations
+
+- [ ] **Bundle Splitting**: Large main.js chunk (611KB) needs manual chunking
+- [ ] **Image Optimization**: Add client-side WebP conversion before upload
+- [ ] **Rate Limiting**: Implement per-user limits on image analysis

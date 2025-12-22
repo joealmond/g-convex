@@ -128,7 +128,7 @@ export default defineSchema({
 
   votes: defineTable({
     productId: v.id("products"),
-    userId: v.id("user"),
+    userId: v.string(), // Changed from v.id("user") to support "anonymous"
     isRegistered: v.boolean(),
     
     // Core Vibe

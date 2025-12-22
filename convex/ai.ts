@@ -24,22 +24,25 @@ export const analyzeImage = action({
     const buffer = Buffer.from(arrayBuffer);
     const base64Image = buffer.toString("base64");
     const mimeType = blob.type || "image/jpeg";
-
-    // 3. Call Gemini
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" }); // Or 1.5-flash
-
-    const prompt = `Analyze this product image for a celiac/gluten-free community app. 
-    Return a JSON object with these exact fields:
-    - productName: string (the brand and product name visible on packaging, or "Unnamed Product" if unknown)
-    - isLikelyGlutenFree: boolean (true if packaging says Gluten Free or product is naturally GF)
-    - riskLevel: "Safe" | "Sketchy" | "Unsafe" (based on ingredients or GF certification)
-    - tags: string[] (e.g., ["Bread", "Snack", "Certified GF"])
-    - reasoning: string (short explanation of classification)
     
-    Return ONLY valid JSON, no markdown code blocks.`;
+    // Get URL regardless of AI success
+    const imageUrl = await ctx.storage.getUrl(args.storageId);
 
     try {
+      // 3. Call Gemini
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" }); 
+
+      const prompt = `Analyze this product image for a celiac/gluten-free community app. 
+      Return a JSON object with these exact fields:
+      - productName: string (the brand and product name visible on packaging, or "Unnamed Product" if unknown)
+      - isLikelyGlutenFree: boolean (true if packaging says Gluten Free or product is naturally GF)
+      - riskLevel: "Safe" | "Sketchy" | "Unsafe" (based on ingredients or GF certification)
+      - tags: string[] (e.g., ["Bread", "Snack", "Certified GF"])
+      - reasoning: string (short explanation of classification)
+      
+      Return ONLY valid JSON, no markdown code blocks.`;
+
       const result = await model.generateContent([
         prompt,
         {
@@ -63,13 +66,22 @@ export const analyzeImage = action({
             riskLevel: analysis.riskLevel || "Sketchy",
             tags: Array.isArray(analysis.tags) ? analysis.tags : [],
             reasoning: analysis.reasoning || "Analysis failed to provide reasoning.",
-        }
+        },
+        imageUrl
       };
     } catch (error: any) {
       console.error("Gemini Analysis Failed:", error);
+      // Fallback: Return success with image but empty analysis
       return {
-        success: false,
-        error: error.message || "Failed to analyze image",
+        success: true,
+        analysis: {
+            productName: "",
+            isLikelyGlutenFree: false,
+            riskLevel: "Sketchy",
+            tags: [],
+            reasoning: "AI analysis unavailable. Please enter details manually.",
+        },
+        imageUrl
       };
     }
   },

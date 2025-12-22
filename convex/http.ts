@@ -1,24 +1,9 @@
 import { httpRouter } from "convex/server";
-import { auth } from "./auth";
+import { authComponent, createAuth } from "./auth";
 
 const http = httpRouter();
 
-import { httpAction } from "./_generated/server";
-
-http.route({
-  pathPrefix: "/api/auth/",
-  method: "POST",
-  handler: httpAction(async (_ctx, request) => {
-    return auth.handler(request);
-  }),
-});
-
-http.route({
-  pathPrefix: "/api/auth/",
-  method: "GET",
-  handler: httpAction(async (_ctx, request) => {
-    return auth.handler(request);
-  }),
-});
+// Register Better Auth routes with the component
+authComponent.registerRoutes(http, createAuth);
 
 export default http;

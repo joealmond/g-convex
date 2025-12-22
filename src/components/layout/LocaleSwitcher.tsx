@@ -1,3 +1,4 @@
-import LocaleSwitcher from './language-switcher';
+import { LanguageSwitcher } from './language-switcher';
 
-export default LocaleSwitcher;
+export default LanguageSwitcher;
+

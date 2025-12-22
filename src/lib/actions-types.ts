@@ -6,6 +6,7 @@ export interface ImageAnalysisState {
   error?: string;
   success?: boolean;
   productName?: string;
+  storageId?: string;
 }
 
 export const initialState: ImageAnalysisState = {

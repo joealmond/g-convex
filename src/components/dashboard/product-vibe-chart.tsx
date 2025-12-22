@@ -11,6 +11,7 @@ import {
   Label,
   ReferenceArea,
   ScatterChart,
+  ResponsiveContainer
 } from 'recharts';
 import { useTranslations } from '@/lib/i18n';
 
@@ -35,6 +36,7 @@ export function ProductVibeChart({ mode = 'vibe' }: ProductVibeChartProps) {
   return (
     <div className="h-full w-full">
       <ChartContainer config={chartConfig} className="w-full h-full">
+        <ResponsiveContainer width="100%" height="100%">
         <ScatterChart
           margin={{
             top: 20,
@@ -162,6 +164,7 @@ export function ProductVibeChart({ mode = 'vibe' }: ProductVibeChartProps) {
             }
           }} />
         </ScatterChart>
+        </ResponsiveContainer>
       </ChartContainer>
     </div>
   );
