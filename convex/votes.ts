@@ -150,15 +150,19 @@ async function applyVoteLogic(
         });
     }
 
-    // 10. Gamification
+    // 10. Gamification (only for registered users, wrapped in try-catch to not block voting)
     if (isRegistered) {
-        await processGamification(ctx, userId, {
-            hasPrice: !!args.price,
-            hasStore: !!args.storeName,
-            hasGps: !!args.geoPoint,
-            isNewProduct: product.voteCount <= 1,
-            votesTodayCount: 0,
-        });
+        try {
+            await processGamification(ctx, userId, {
+                hasPrice: !!args.price,
+                hasStore: !!args.storeName,
+                hasGps: !!args.geoPoint,
+                isNewProduct: product.voteCount <= 1,
+                votesTodayCount: 0,
+            });
+        } catch (e) {
+            console.error("Gamification failed (non-blocking):", e);
+        }
     }
     
     return { success: true, productId };

@@ -29,11 +29,16 @@ export function ImageUploadDialog({ children, open, onOpenChange }: ImageUploadD
     // Close the dialog
     onOpenChange?.(false);
     
-    // Store in session storage as a fallback
+    // Clear any stale data first
+    sessionStorage.removeItem('identifiedProduct');
+    
+    // Store new analysis in session storage
     sessionStorage.setItem('identifiedProduct', JSON.stringify(analysisResult));
 
-    // Navigate to the product page with the product name
-    const url = `/product/${encodeURIComponent(analysisResult.productName || 'Unnamed Product')}`;
+    // Navigate to a unique new product path using timestamp to avoid conflicts
+    // This ensures we always go to product creation, not viewing an existing product
+    const uniqueId = Date.now().toString(36);
+    const url = `/product/new-${uniqueId}`;
     navigate({ to: url });
   };
   

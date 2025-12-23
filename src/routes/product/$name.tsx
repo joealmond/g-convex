@@ -2,17 +2,27 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { convexQuery } from '@convex-dev/react-query'
 import { api } from '../../../convex/_generated/api'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { Input } from '../../components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs'
 import { ProductVibeChart } from '../../components/dashboard/product-vibe-chart'
-import { Loader2 } from 'lucide-react'
+import { DraggableDot } from '../../components/dashboard/draggable-dot'
+import { Loader2, CheckCircle, ThumbsUp } from 'lucide-react'
 import { useToast } from '../../hooks/use-toast'
 import { VotingPanel } from '../../components/dashboard/voting-panel'
+import { Button } from '../../components/ui/button'
+import { Slider } from '../../components/ui/slider'
+import { Label } from '../../components/ui/label'
+import { useMutation } from 'convex/react'
+import { useCurrentUser } from '../../hooks/use-current-user'
+import type { Id } from '../../../convex/_generated/dataModel'
 
 export const Route = createFileRoute('/product/$name')({
   component: ProductPage,
+  validateSearch: (search: Record<string, unknown>) => ({
+    voted: search.voted as string | undefined,
+  }),
 })
 
 function getRelativeTimeString(date: number | Date): string {
@@ -35,22 +45,42 @@ function ProductPage() {
     const [analysisResult, setAnalysisResult] = useState<any>(null)
     const chartCardRef = useRef<HTMLDivElement>(null)
     
-    // Queries
-    const { data: product, isLoading } = useQuery(convexQuery(api.products.getByName, { name: decodedName }))
-
-    const [productName, setProductName] = useState(decodedName)
+    // Check if this is a "new product" creation URL (new-{timestamp})
+    const isNewProductUrl = decodedName.startsWith('new-')
     
-    // Check for new product analysis data on mount
+    // Query for existing product - for new product URLs this will return null which is fine
+    const { data: product, isLoading } = useQuery(
+        convexQuery(api.products.getByName, { name: decodedName })
+    )
+
+    const [productName, setProductName] = useState(isNewProductUrl ? 'New Product' : decodedName)
+    
+    // Check if user just voted (came from VotingPanel)
+    const search = Route.useSearch() as { voted?: string }
+    
+    // View mode: average, myVote, allVotes - default to myVote if just voted
+    const [viewMode, setViewMode] = useState<'average' | 'myVote' | 'allVotes'>(
+        search?.voted === 'true' ? 'myVote' : 'average'
+    )
+    
+    // Fine-tuning state
+    const [customVibe, setCustomVibe] = useState({ safety: 50, taste: 50 })
+    const [isSubmitting, setIsSubmitting] = useState(false)
+    const [hasVoted, setHasVoted] = useState(false)
+    
+    const { userId } = useCurrentUser()
+    const castVoteMutation = useMutation(api.votes.castVote)
+    
+    // Load analysis data from sessionStorage for new product URLs
     useEffect(() => {
-        if (!product && !isLoading) {
+        if (isNewProductUrl || (!product && !isLoading)) {
             const stored = sessionStorage.getItem('identifiedProduct')
             if (stored) {
                 try {
                     const parsed = JSON.parse(stored)
-                    // valid only if names match loosely
-                    if (parsed.productName === decodedName || 'Unnamed Product' === decodedName) {
-                        setAnalysisResult(parsed)
-                        if (parsed.productName) setProductName(parsed.productName)
+                    setAnalysisResult(parsed)
+                    if (parsed.productName) {
+                        setProductName(parsed.productName)
                     }
                 } catch (e) {
                     console.error("Failed to parse analysis result")
@@ -58,12 +88,89 @@ function ProductPage() {
             }
         }
     }, [product, isLoading, decodedName])
+    
+    // Initialize customVibe from product averages
+    useEffect(() => {
+        if (product) {
+            setCustomVibe({
+                safety: product.avgSafety || 50,
+                taste: product.avgTaste || 50
+            })
+        }
+    }, [product])
+    
+    const handleVibeChange = useCallback((newVibe: { safety: number; taste: number }) => {
+        setCustomVibe(newVibe)
+    }, [])
+    
+    const handleSliderChange = (type: 'safety' | 'taste', value: number[]) => {
+        setCustomVibe(prev => ({ ...prev, [type]: value[0] }))
+    }
+    
+    // Submit fine-tuned vote
+    const handleSubmitFineTune = async () => {
+        if (!product || !userId) return
+        setIsSubmitting(true)
+        
+        try {
+            await castVoteMutation({
+                productId: product._id as Id<"products">,
+                safety: customVibe.safety,
+                taste: customVibe.taste,
+                userId,
+            })
+            
+            toast({
+                title: hasVoted ? "Vote Updated!" : "Vote Saved!",
+                description: "Your fine-tuned rating has been recorded."
+            })
+            setHasVoted(true)
+        } catch (e: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: e.message || 'Failed to save vote'
+            })
+        } finally {
+            setIsSubmitting(false)
+        }
+    }
+    
+    // Agree with community average
+    const handleAgree = async () => {
+        if (!product || !userId) return
+        setIsSubmitting(true)
+        
+        try {
+            await castVoteMutation({
+                productId: product._id as Id<"products">,
+                safety: Math.round(product.avgSafety || 50),
+                taste: Math.round(product.avgTaste || 50),
+                userId,
+            })
+            
+            toast({
+                title: "Agreed!",
+                description: "You agreed with the community average."
+            })
+            setHasVoted(true)
+        } catch (e: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: e.message || 'Failed to save vote'
+            })
+        } finally {
+            setIsSubmitting(false)
+        }
+    }
 
-    if (isLoading) return <div className="p-8 text-center flex justify-center"><Loader2 className="animate-spin" /></div>
+    // Don't show loading for new product URLs since we're not querying
+    if (isLoading && !isNewProductUrl) return <div className="p-8 text-center flex justify-center"><Loader2 className="animate-spin" /></div>
 
-    // CASE 1: New Product Creation
-    if (!product) {
-        if (analysisResult || decodedName) { // Allow creation even if no analysis, just name
+    // CASE 1: New Product Creation (new-* URL or no existing product found)
+    if (isNewProductUrl || !product) {
+        if (analysisResult || productName) {
             return (
                 <div className="container mx-auto p-4 max-w-2xl space-y-8">
                      <div className="flex flex-col items-center gap-4">
@@ -73,7 +180,6 @@ function ProductPage() {
                             className="text-center text-3xl font-bold w-full max-w-md h-12"
                             placeholder="Product Name"
                         />
-                        {/* Show "mock" badge or similar if needed, but user wants to edit title */}
                      </div>
                      <div className="flex justify-center">
                         {analysisResult?.imageUrl ? (
@@ -99,10 +205,8 @@ function ProductPage() {
                         analysisResult={analysisResult}
                         onVibeSubmit={() => {
                             sessionStorage.removeItem('identifiedProduct');
-                            // Navigate to the (potentially new) product name to load the "Refinement Page" (Existing View)
-                            navigate({ to: `/product/${encodeURIComponent(productName)}` });
-                            // Force reload if needed, but navigation should trigger query invalidation naturally or we can invalidate query
-                            // window.location.href = ... might be safer if query invalidation is tricky
+                            // Navigate to product page with voted=true to auto-show My Vote tab
+                            navigate({ to: `/product/${encodeURIComponent(productName)}`, search: { voted: 'true' } });
                         }}
                      />
                 </div>
@@ -111,7 +215,7 @@ function ProductPage() {
         return <div className="p-8 text-center">Product not found</div>
     }
 
-    // CASE 2: Existing Product View
+    // CASE 2: Existing Product View - with inline fine-tuning like original
     return (
         <div className="container mx-auto p-4 space-y-8">
             <h1 className="text-3xl font-bold">{product.name}</h1>
@@ -131,14 +235,13 @@ function ProductPage() {
                     </CardContent>
                 </Card>
 
-                {/* Chart Card */}
+                {/* Chart Card with Inline Fine-Tuning */}
                 <Card ref={chartCardRef}>
                     <CardHeader>
-                        <CardTitle>
-                             Overall Vibe
-                        </CardTitle>
+                        <CardTitle>Overall Vibe</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-6">
+                         {/* Stats Row */}
                          <div className="flex justify-between text-center">
                             <div>
                                 <div className="text-xs text-muted-foreground uppercase">Safety</div>
@@ -149,31 +252,96 @@ function ProductPage() {
                                 <div className="text-2xl font-bold">{Math.round(product.avgTaste || 0)}%</div>
                             </div>
                              <div>
-                                <div className="text-xs text-muted-foreground uppercase">Price</div>
-                                <div className="text-2xl font-bold">${Math.round(product.avgPrice || 0)}</div>
+                                <div className="text-xs text-muted-foreground uppercase">Votes</div>
+                                <div className="text-2xl font-bold">{product.voteCount || 0}</div>
                             </div>
                         </div>
 
+                        {/* Chart with Draggable Dot */}
                         <div className="relative h-[350px]">
                             <ProductVibeChart mode="vibe" />
-                        </div>
-
-                        <Tabs defaultValue="average" className="w-full">
-                            <TabsList className="w-full grid grid-cols-2">
-                                <TabsTrigger value="average">Average</TabsTrigger>
-                                <TabsTrigger value="vote">Vote</TabsTrigger>
-                            </TabsList>
-                             <div className="mt-4">
-                                <VotingPanel 
-                                    product={{...product, id: product._id}}
-                                    productName={product.name}
-                                    analysisResult={null}
-                                    onVibeSubmit={() => {
-                                        toast({ title: "Vote Refreshed" })
+                            
+                            {/* Average dot when in average view */}
+                            {viewMode === 'average' && (
+                                <div
+                                    className="absolute w-4 h-4 rounded-full border-2 border-primary-foreground shadow-lg pointer-events-none bg-primary"
+                                    style={{
+                                        left: `calc(${product.avgTaste || 50}% - 8px)`,
+                                        top: `calc(${100 - (product.avgSafety || 50)}% - 8px)`,
                                     }}
                                 />
-                             </div>
+                            )}
+                            
+                            {/* Draggable dot when in myVote view */}
+                            {viewMode === 'myVote' && (
+                                <DraggableDot
+                                    safety={customVibe.safety}
+                                    taste={customVibe.taste}
+                                    onVibeChange={handleVibeChange}
+                                />
+                            )}
+                        </div>
+                        
+                        {/* View Mode Tabs */}
+                        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as typeof viewMode)} className="w-full">
+                            <TabsList className="grid w-full grid-cols-3">
+                                <TabsTrigger value="average">Average</TabsTrigger>
+                                <TabsTrigger value="myVote">My Vote</TabsTrigger>
+                                <TabsTrigger value="allVotes">All Votes</TabsTrigger>
+                            </TabsList>
                         </Tabs>
+                        
+                        {/* Fine-Tuning Controls - show when in myVote mode */}
+                        {viewMode === 'myVote' && (
+                            <div className="space-y-4 pt-4 border-t">
+                                <p className="text-sm text-muted-foreground">
+                                    Drag the dot or use sliders to fine-tune your vote
+                                </p>
+                                
+                                {/* Sliders */}
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    <div className="space-y-2">
+                                        <Label className="text-sm">Safety: {customVibe.safety}%</Label>
+                                        <Slider
+                                            value={[customVibe.safety]}
+                                            onValueChange={(v) => handleSliderChange('safety', v)}
+                                            max={100}
+                                            step={1}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-sm">Taste: {customVibe.taste}%</Label>
+                                        <Slider
+                                            value={[customVibe.taste]}
+                                            onValueChange={(v) => handleSliderChange('taste', v)}
+                                            max={100}
+                                            step={1}
+                                        />
+                                    </div>
+                                </div>
+                                
+                                {/* Vote Buttons */}
+                                <div className="flex flex-col sm:flex-row gap-2">
+                                    <Button
+                                        onClick={handleAgree}
+                                        disabled={isSubmitting}
+                                        variant="outline"
+                                        className="flex-1"
+                                    >
+                                        {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ThumbsUp className="mr-2 h-4 w-4" />}
+                                        Agree with Community
+                                    </Button>
+                                    <Button
+                                        onClick={handleSubmitFineTune}
+                                        disabled={isSubmitting}
+                                        className="flex-1"
+                                    >
+                                        {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                                        {hasVoted ? "Update Vote" : "Submit Vote"}
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
             </div>

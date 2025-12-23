@@ -1,4 +1,4 @@
-import { mutation, internalMutation } from "./_generated/server";
+import { internalMutation } from "./_generated/server";
 
 /**
  * Seed the database with test products (internal - no auth required for CLI)

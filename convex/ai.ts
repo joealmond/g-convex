@@ -3,20 +3,45 @@ import { action } from "./_generated/server";
 import { v } from "convex/values";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-
-
 export const analyzeImage = action({
   args: { storageId: v.id("_storage") },
   handler: async (ctx, args) => {
     const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    
+    // Get URL first - always works
+    const imageUrl = await ctx.storage.getUrl(args.storageId);
+    
+    // If no API key, return immediately with image but no analysis
     if (!apiKey) {
-      throw new Error("Missing GOOGLE_GENERATIVE_AI_API_KEY");
+      console.log("No GOOGLE_GENERATIVE_AI_API_KEY, skipping AI analysis");
+      return {
+        success: true,
+        analysis: {
+            productName: "",
+            isLikelyGlutenFree: false,
+            riskLevel: "Sketchy" as const,
+            tags: [],
+            reasoning: "AI analysis unavailable (no API key).",
+        },
+        imageUrl
+      };
     }
 
     // 1. Fetch image from storage
     const blob = await ctx.storage.get(args.storageId);
     if (!blob) {
-      throw new Error("Image not found in storage");
+      // Still return success with image URL
+      return {
+        success: true,
+        analysis: {
+            productName: "",
+            isLikelyGlutenFree: false,
+            riskLevel: "Sketchy" as const,
+            tags: [],
+            reasoning: "Image not found in storage.",
+        },
+        imageUrl
+      };
     }
 
     // 2. Convert to compatible format
@@ -24,14 +49,11 @@ export const analyzeImage = action({
     const buffer = Buffer.from(arrayBuffer);
     const base64Image = buffer.toString("base64");
     const mimeType = blob.type || "image/jpeg";
-    
-    // Get URL regardless of AI success
-    const imageUrl = await ctx.storage.getUrl(args.storageId);
 
     try {
-      // 3. Call Gemini
+      // 3. Call Gemini - using correct model name
       const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" }); 
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); 
 
       const prompt = `Analyze this product image for a celiac/gluten-free community app. 
       Return a JSON object with these exact fields:
@@ -54,7 +76,6 @@ export const analyzeImage = action({
       ]);
 
       const responseText = result.response.text();
-      // Clean up markdown block if present
       const cleanText = responseText.replace(/```json/g, "").replace(/```/g, "").trim();
       const analysis = JSON.parse(cleanText);
 
@@ -65,21 +86,21 @@ export const analyzeImage = action({
             isLikelyGlutenFree: !!analysis.isLikelyGlutenFree,
             riskLevel: analysis.riskLevel || "Sketchy",
             tags: Array.isArray(analysis.tags) ? analysis.tags : [],
-            reasoning: analysis.reasoning || "Analysis failed to provide reasoning.",
+            reasoning: analysis.reasoning || "",
         },
         imageUrl
       };
     } catch (error: any) {
-      console.error("Gemini Analysis Failed:", error);
-      // Fallback: Return success with image but empty analysis
+      console.error("Gemini Analysis Failed:", error?.message || error);
+      // AI failed but still return success with image - DON'T BLOCK THE USER
       return {
         success: true,
         analysis: {
             productName: "",
             isLikelyGlutenFree: false,
-            riskLevel: "Sketchy",
+            riskLevel: "Sketchy" as const,
             tags: [],
-            reasoning: "AI analysis unavailable. Please enter details manually.",
+            reasoning: "AI unavailable. Enter details manually.",
         },
         imageUrl
       };
