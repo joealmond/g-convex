@@ -123,7 +123,7 @@ export function CoordinateGrid({
   const xAxisLabel = 'Taste';
 
   return (
-    <div className={cn('relative w-full aspect-square', className)}>
+    <div className={cn('relative w-full aspect-[16/10]', className)}>
       {/* Y-Axis Label */}
       {showAxisLabels && (
         <div className="absolute -left-6 top-1/2 -translate-y-1/2 -rotate-90 text-xs text-muted-foreground whitespace-nowrap">
@@ -197,13 +197,14 @@ export function CoordinateGrid({
           <div
             key={dot.id || index}
             className={cn(
-              'absolute rounded-full pointer-events-none transform -translate-x-1/2 translate-y-1/2',
+              'absolute rounded-full pointer-events-none z-10 border-2 border-white shadow-lg',
               DOT_SIZES[dot.size || 'md'],
-              dot.highlighted && 'ring-2 ring-white ring-offset-2 ring-offset-background z-10'
+              dot.highlighted && 'ring-2 ring-white ring-offset-2 ring-offset-background z-20'
             )}
             style={{
               left: `${dot.x}%`,
               bottom: `${dot.y}%`,
+              transform: 'translate(-50%, 50%)',
               backgroundColor: dot.color || 'hsl(var(--primary))',
             }}
           />

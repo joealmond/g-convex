@@ -16,6 +16,7 @@ import { Label } from '../../components/ui/label'
 import { useMutation } from 'convex/react'
 import { useCurrentUser } from '../../hooks/use-current-user'
 import type { Id } from '../../../convex/_generated/dataModel'
+import { useTranslations } from '../../lib/i18n'
 
 export const Route = createFileRoute('/product/$name')({
   component: ProductPage,
@@ -37,6 +38,9 @@ function getRelativeTimeString(date: number | Date): string {
 }
 
 function ProductPage() {
+    // Translations
+    const t = useTranslations('ProductPage')
+    
     const { name } = Route.useParams()
     const navigate = useNavigate()
     const { toast } = useToast()
@@ -67,7 +71,7 @@ function ProductPage() {
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [hasVoted, setHasVoted] = useState(false)
     
-    const { userId } = useCurrentUser()
+    const { userId, isRegistered } = useCurrentUser()
     const castVoteMutation = useMutation(api.votes.castVote)
     
     // Load analysis data from sessionStorage for new product URLs
@@ -243,15 +247,15 @@ function ProductPage() {
                          {/* Stats Row */}
                          <div className="flex justify-between text-center">
                             <div>
-                                <div className="text-xs text-muted-foreground uppercase">Safety</div>
+                                <div className="text-xs text-muted-foreground uppercase">{t('safety')}</div>
                                 <div className="text-2xl font-bold">{Math.round(product.avgSafety || 0)}%</div>
                             </div>
                             <div>
-                                <div className="text-xs text-muted-foreground uppercase">Taste</div>
+                                <div className="text-xs text-muted-foreground uppercase">{t('taste')}</div>
                                 <div className="text-2xl font-bold">{Math.round(product.avgTaste || 0)}%</div>
                             </div>
                              <div>
-                                <div className="text-xs text-muted-foreground uppercase">Votes</div>
+                                <div className="text-xs text-muted-foreground uppercase">{t('votes')}</div>
                                 <div className="text-2xl font-bold">{product.voteCount || 0}</div>
                             </div>
                         </div>
@@ -262,12 +266,12 @@ function ProductPage() {
                                 mode="vibe"
                                 showLabels={true}
                                 showAxisLabels={true}
-                                dots={viewMode === 'average' ? [
+                                dots={viewMode !== 'myVote' ? [
                                     {
-                                        x: product.avgTaste || 50,
-                                        y: product.avgSafety || 50,
+                                        x: product.avgTaste ?? 50,
+                                        y: product.avgSafety ?? 50,
                                         color: 'hsl(var(--primary))',
-                                        size: 'md',
+                                        size: 'lg',
                                         id: 'average'
                                     }
                                 ] : []}
@@ -282,17 +286,17 @@ function ProductPage() {
                         {/* View Mode Tabs */}
                         <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as typeof viewMode)} className="w-full">
                             <TabsList className="grid w-full grid-cols-3">
-                                <TabsTrigger value="average">Average</TabsTrigger>
-                                <TabsTrigger value="myVote">My Vote</TabsTrigger>
-                                <TabsTrigger value="allVotes">All Votes</TabsTrigger>
+                                <TabsTrigger value="average">{t('average')}</TabsTrigger>
+                                <TabsTrigger value="myVote">{t('myVote')}</TabsTrigger>
+                                <TabsTrigger value="allVotes">{t('allVotes')}</TabsTrigger>
                             </TabsList>
                         </Tabs>
                         
-                        {/* Fine-Tuning Controls - show when in myVote mode */}
-                        {viewMode === 'myVote' && (
+                        {/* Fine-Tuning Controls - show when in myVote mode AND logged in */}
+                        {viewMode === 'myVote' && isRegistered && (
                             <div className="space-y-4 pt-4 border-t">
                                 <p className="text-sm text-muted-foreground">
-                                    Drag the dot or use sliders to fine-tune your vote
+                                    {t('dragToVote')}
                                 </p>
                                 
                                 {/* Sliders */}
@@ -321,22 +325,31 @@ function ProductPage() {
                                 <div className="flex flex-col sm:flex-row gap-2">
                                     <Button
                                         onClick={handleAgree}
-                                        disabled={isSubmitting}
+                                        disabled={isSubmitting || !isRegistered}
                                         variant="outline"
                                         className="flex-1"
                                     >
                                         {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ThumbsUp className="mr-2 h-4 w-4" />}
-                                        Agree with Community
+                                        {t('agreeWithCommunity')}
                                     </Button>
                                     <Button
                                         onClick={handleSubmitFineTune}
-                                        disabled={isSubmitting}
+                                        disabled={isSubmitting || !isRegistered}
                                         className="flex-1"
                                     >
                                         {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
-                                        {hasVoted ? "Update Vote" : "Submit Vote"}
+                                        {hasVoted ? t('confirmUpdate') : t('confirmVote')}
                                     </Button>
                                 </div>
+                            </div>
+                        )}
+                        
+                        {/* Sign-in prompt - show when in myVote mode but NOT logged in */}
+                        {viewMode === 'myVote' && !isRegistered && (
+                            <div className="py-8 text-center space-y-4 border-t">
+                                <p className="text-muted-foreground">
+                                    {t('signInToVote')}
+                                </p>
                             </div>
                         )}
                     </CardContent>
