@@ -119,6 +119,7 @@ export function AdminProductList({ chartData, onItemClick, highlightedProduct, l
               <Link 
                 to={`/product/$name`}
                 params={{ name: item.name }}
+                search={{ voted: undefined }}
                 className="flex-1 flex items-center gap-4 p-2 cursor-pointer"
                 onClick={() => onItemClick?.(item.name)}
                 >

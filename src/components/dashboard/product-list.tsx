@@ -54,7 +54,7 @@ export function ProductList({ chartData, onItemClick, highlightedProduct, loadin
               )}
               style={{scrollMarginTop: '80px'}} // For smooth scroll offset
             >
-              <Link to="/product/$name" params={{ name: item.name }} className="flex items-center gap-4 p-2 cursor-pointer">
+              <Link to="/product/$name" params={{ name: item.name }} search={{ voted: undefined }} className="flex items-center gap-4 p-2 cursor-pointer">
                 <div
                   className="h-12 w-12 rounded-md bg-muted flex-shrink-0 relative overflow-hidden"
                 >

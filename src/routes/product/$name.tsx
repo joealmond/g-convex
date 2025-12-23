@@ -6,8 +6,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { Input } from '../../components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs'
-import { ProductVibeChart } from '../../components/dashboard/product-vibe-chart'
-import { DraggableDot } from '../../components/dashboard/draggable-dot'
+import { CoordinateGrid } from '../../components/dashboard/coordinate-grid'
 import { Loader2, CheckCircle, ThumbsUp } from 'lucide-react'
 import { useToast } from '../../hooks/use-toast'
 import { VotingPanel } from '../../components/dashboard/voting-panel'
@@ -257,29 +256,27 @@ function ProductPage() {
                             </div>
                         </div>
 
-                        {/* Chart with Draggable Dot */}
-                        <div className="relative h-[350px]">
-                            <ProductVibeChart mode="vibe" />
-                            
-                            {/* Average dot when in average view */}
-                            {viewMode === 'average' && (
-                                <div
-                                    className="absolute w-4 h-4 rounded-full border-2 border-primary-foreground shadow-lg pointer-events-none bg-primary"
-                                    style={{
-                                        left: `calc(${product.avgTaste || 50}% - 8px)`,
-                                        top: `calc(${100 - (product.avgSafety || 50)}% - 8px)`,
-                                    }}
-                                />
-                            )}
-                            
-                            {/* Draggable dot when in myVote view */}
-                            {viewMode === 'myVote' && (
-                                <DraggableDot
-                                    safety={customVibe.safety}
-                                    taste={customVibe.taste}
-                                    onVibeChange={handleVibeChange}
-                                />
-                            )}
+                        {/* Chart with CoordinateGrid - unified dot positioning */}
+                        <div className="py-4">
+                            <CoordinateGrid
+                                mode="vibe"
+                                showLabels={true}
+                                showAxisLabels={true}
+                                dots={viewMode === 'average' ? [
+                                    {
+                                        x: product.avgTaste || 50,
+                                        y: product.avgSafety || 50,
+                                        color: 'hsl(var(--primary))',
+                                        size: 'md',
+                                        id: 'average'
+                                    }
+                                ] : []}
+                                draggable={viewMode === 'myVote' ? {
+                                    x: customVibe.taste,
+                                    y: customVibe.safety,
+                                    onChange: (x, y) => handleVibeChange({ safety: y, taste: x })
+                                } : undefined}
+                            />
                         </div>
                         
                         {/* View Mode Tabs */}

@@ -7,47 +7,15 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from '@/components/ui/chart';
-import { useIsMobile } from '@/hooks/use-mobile';
 import type { Product } from '@/lib/types';
 import { ArrowRight, ArrowUp } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import {
-  Scatter,
-  ScatterChart,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Label,
-  ReferenceArea,
-  ZAxis,
-} from 'recharts';
-// import { useTranslations } from 'next-intl';
-// Mock t function
-const t = (key: string) => {
-    const map: Record<string, string> = {
-        'title': 'Vibe Matrix',
-        'valueLensTitle': 'Value Matrix',
-        'safetyLabel': 'Safety',
-        'priceLabel': 'Price',
-        'vsLabel': 'vs',
-        'safetyAxisLabel': 'Safety Score',
-        'priceAxisLabel': 'Price',
-        'tasteAxisLabel': 'Taste Score',
-        'holyGrail': 'HOLY GRAIL',
-        'survivorFood': 'SURVIVOR FOOD',
-        'theBin': 'THE BIN',
-        'russianRoulette': 'RUSSIAN ROULETTE',
-        'theSteal': 'THE STEAL',
-        'cheapFiller': 'CHEAP FILLER',
-        'ripOff': 'RIP OFF',
-        'treat': 'TREAT'
-    };
-    return map[key] || key;
-};
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 export const chartColors = [
   '#8884d8',
@@ -73,19 +41,30 @@ export function getColorForProduct(productName: string): string {
   return chartColors[index];
 }
 
-const chartConfig = {
-  safety: {
-    label: 'Safety',
+// Quadrant labels
+const QUADRANT_LABELS = {
+  vibe: {
+    topRight: 'HOLY GRAIL',
+    topLeft: 'SURVIVOR FOOD',
+    bottomRight: 'RUSSIAN ROULETTE',
+    bottomLeft: 'THE BIN',
   },
-  taste: {
-    label: 'Taste',
+  value: {
+    topRight: 'TREAT',
+    topLeft: 'RIP OFF',
+    bottomRight: 'THE STEAL',
+    bottomLeft: 'CHEAP FILLER',
   },
-  price: {
-    label: 'Price',
-  },
-  product: {
-    label: 'Product',
-  },
+};
+
+// Quadrant colors - FIXED for both modes (position-based, not mode-based)
+// Green = best of both coordinates (top-right)
+// Red = worst of both coordinates (bottom-left)
+const QUADRANT_COLORS = {
+  topRight: 'bg-green-500/15',   // Best: high X, high Y
+  topLeft: 'bg-yellow-500/10',   // Mixed: low X, high Y
+  bottomRight: 'bg-orange-500/10', // Mixed: high X, low Y
+  bottomLeft: 'bg-red-500/15',   // Worst: low X, low Y
 };
 
 export type ChartMode = 'vibe' | 'value';
@@ -97,244 +76,147 @@ type MatrixChartProps = {
   mode?: ChartMode;
 };
 
-const CustomDot = (props: any) => {
-  const { cx, cy, payload, onPointClick, highlightedProduct, fill } = props;
-
-  if (isNaN(cx) || isNaN(cy)) {
-    return null;
-  }
-
-  const isHighlighted = highlightedProduct === payload.name;
-
-  return (
-    <circle
-      cx={cx}
-      cy={cy}
-      r={isHighlighted ? 10 : 6}
-      fill={fill}
-      stroke={isHighlighted ? 'hsl(var(--card))' : 'transparent'}
-      strokeWidth={2}
-      onClick={() => onPointClick?.(payload.name)}
-      className="cursor-pointer transition-all"
-      style={{ filter: `drop-shadow(0 2px 4px ${fill}A0)` }}
-    />
-  );
-};
-
-
 export function MatrixChart({
   chartData,
   highlightedProduct,
   onPointClick,
   mode = 'vibe',
 }: MatrixChartProps) {
-  const isMobile = useIsMobile();
-  // const t = useTranslations('MatrixChart');
-  
-  // Map data based on mode
-  // For Value lens: price 1 (cheap) -> 20 (bottom), price 5 (expensive) -> 100 (top)
-  const dataWithCoords = chartData
+  const labels = QUADRANT_LABELS[mode];
+  // Colors are now fixed - same for all modes
+
+  // Map data - fixed 0-100 scale for all modes
+  const mappedData = chartData
     .filter(item => item.avgTaste !== undefined && item.avgSafety !== undefined)
     .map(item => {
-      // Direct mapping: 1->20, 5->100 (cheap at bottom, expensive at top)
-      const priceChartValue = item.avgPrice ? (item.avgPrice - 1) * 20 + 20 : 50; // 1->20, 5->100, no price->50
+      // For value mode: map price 1-5 to 0-100 scale
+      // Price 1 = bottom (0), Price 5 = top (100)
+      const yValue = mode === 'vibe' 
+        ? (item.avgSafety ?? 50)
+        : item.avgPrice ? ((item.avgPrice - 1) / 4) * 100 : 50;
+      
       return {
-        ...item,
-        taste: item.avgTaste,
-        safety: item.avgSafety,
-        price: priceChartValue,
-        product: item.name,
+        name: item.name,
+        x: item.avgTaste ?? 50,
+        y: yValue,
+        color: getColorForProduct(item.name),
       };
     });
 
-  const showDots = dataWithCoords.length > 0;
-  const yDataKey = mode === 'vibe' ? 'safety' : 'price';
-  const yAxisLabel = mode === 'vibe' ? t('safetyAxisLabel') : t('priceAxisLabel');
+  const title = mode === 'vibe' ? 'Vibe Matrix' : 'Value Matrix';
+  const yLabel = mode === 'vibe' ? 'Safety' : 'Price';
+  const xLabel = 'Taste';
+
+  // Y-axis ticks
+  const yTicks = mode === 'vibe' 
+    ? [0, 25, 50, 75, 100]
+    : ['$', '$$', '$$$', '$$$$', '$$$$$'];
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-headline">{mode === 'vibe' ? t('title') : t('valueLensTitle')}</CardTitle>
+        <CardTitle className="font-headline">{title}</CardTitle>
         <CardDescription className="flex items-center gap-1">
-          <span>{mode === 'vibe' ? t('safetyLabel') : t('priceLabel')}</span>
+          <span>{yLabel}</span>
           <ArrowUp className="h-4 w-4" />
-          <span>{t('vsLabel')}</span>
+          <span>vs</span>
+          <span>{xLabel}</span>
           <ArrowRight className="h-4 w-4" />
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="w-full cursor-default">
-          <ChartContainer
-            config={chartConfig}
-            className="w-full aspect-square sm:aspect-video min-h-[300px]"
-          >
-            <ScatterChart
-              margin={{
-                top: 20,
-                right: isMobile ? 10 : 20,
-                bottom: 20,
-                left: isMobile ? -20 : 0,
-              }}
-            >
-                {/* Quadrant Backgrounds - colors depend on mode */}
-                {/* Top-Right: Vibe=Holy Grail(Green), Value=Treat(Yellow) */}
-                <ReferenceArea
-                  x1={50}
-                  x2={100}
-                  y1={50}
-                  y2={100}
-                  stroke={mode === 'vibe' ? "hsl(var(--accent) / 0.2)" : "hsl(var(--muted) / 0.3)"}
-                  fill={mode === 'vibe' ? "hsl(var(--accent) / 0.1)" : "hsl(var(--muted) / 0.2)"}
-                  ifOverflow="visible"
-                />
-                {/* Top-Left: Vibe=Survivor Food(Muted), Value=Rip-off(Red) */}
-                <ReferenceArea
-                  x1={0}
-                  x2={50}
-                  y1={50}
-                  y2={100}
-                  stroke={mode === 'vibe' ? "hsl(var(--muted) / 0.3)" : "hsl(var(--destructive) / 0.3)"}
-                  fill={mode === 'vibe' ? "hsl(var(--muted) / 0.2)" : "hsl(var(--destructive) / 0.2)"}
-                  ifOverflow="visible"
-                />
-                {/* Bottom-Right: Vibe=Russian Roulette(Red), Value=The Steal(Green) */}
-                <ReferenceArea
-                  x1={50}
-                  x2={100}
-                  y1={0}
-                  y2={50}
-                  stroke={mode === 'vibe' ? "hsl(var(--destructive) / 0.2)" : "hsl(var(--accent) / 0.2)"}
-                  fill={mode === 'vibe' ? "hsl(var(--destructive) / 0.1)" : "hsl(var(--accent) / 0.1)"}
-                  ifOverflow="visible"
-                />
-                {/* Bottom-Left: Vibe=The Bin(Red), Value=Cheap Filler(Muted) */}
-                <ReferenceArea
-                  x1={0}
-                  x2={50}
-                  y1={0}
-                  y2={50}
-                  stroke={mode === 'vibe' ? "hsl(var(--destructive) / 0.3)" : "hsl(var(--muted) / 0.3)"}
-                  fill={mode === 'vibe' ? "hsl(var(--destructive) / 0.2)" : "hsl(var(--muted) / 0.2)"}
-                  ifOverflow="visible"
-                />
+        <div className="relative w-full">
+          {/* Y-Axis Labels */}
+          <div className="absolute left-0 top-0 bottom-6 w-10 flex flex-col justify-between items-end pr-1 text-xs text-muted-foreground">
+            {yTicks.slice().reverse().map((tick, i) => (
+              <span key={i}>{tick}</span>
+            ))}
+          </div>
 
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="hsl(var(--border))"
-                />
-                <XAxis
-                  dataKey="taste"
-                  type="number"
-                  name="Taste"
-                  domain={[0, 100]}
-                  stroke="hsl(var(--foreground))"
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                  tickLine={{ stroke: 'hsl(var(--muted-foreground))' }}
-                >
-                  <Label
-                    value={t('tasteAxisLabel')}
-                    offset={-15}
-                    position="insideBottom"
-                    fill="hsl(var(--foreground))"
-                    className="text-sm"
-                  />
-                </XAxis>
-                <YAxis
-                  dataKey={yDataKey}
-                  type="number"
-                  name={mode === 'vibe' ? 'Safety' : 'Price'}
-                  domain={[0, 100]}
-                  ticks={mode === 'vibe' ? [0, 25, 50, 75, 100] : [20, 40, 60, 80, 100]}
-                  tickFormatter={mode === 'vibe' 
-                    ? (value: number) => `${value}` 
-                    : (value: number) => {
-                        // Map Y values to dollar signs: 20=$, 40=$$, 60=$$$, 80=$$$$, 100=$$$$$
-                        const dollarMap: Record<number, string> = { 20: '$', 40: '$$', 60: '$$$', 80: '$$$$', 100: '$$$$$' };
-                        return dollarMap[value] || '';
-                      }
-                  }
-                  stroke="hsl(var(--foreground))"
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                  tickLine={{ stroke: 'hsl(var(--muted-foreground))' }}
-                >
-                  <Label
-                    value={yAxisLabel}
-                    angle={-90}
-                    offset={isMobile ? 0 : 10}
-                    position="insideLeft"
-                    fill="hsl(var(--foreground))"
-                    className="text-sm"
-                  />
-                </YAxis>
-                
-                <Label content={({ viewBox }) => {
-                    const cartesianViewBox = viewBox as { x?: number; y?: number; width?: number; height?: number } | undefined;
-                    if (!cartesianViewBox || !cartesianViewBox.width || !cartesianViewBox.height) return null;
-                    const { x = 0, y = 0, width, height } = cartesianViewBox;
-                    const cx = x + width / 2;
-                    const cy = y + height / 2;
-                    
-                    if (mode === 'vibe') {
-                      return (
-                        <>
-                          <text x={cx + width/4} y={cy - height/4} fill="hsl(var(--accent-foreground))" textAnchor="middle" dominantBaseline="middle" className="font-bold opacity-50 pointer-events-none">{t('holyGrail')}</text>
-                          <text x={cx - width/4} y={cy - height/4} fill="hsl(var(--foreground))" textAnchor="middle" dominantBaseline="middle" className="font-bold opacity-50 pointer-events-none">{t('survivorFood')}</text>
-                          <text x={cx - width/4} y={cy + height/4} fill="hsl(var(--destructive-foreground))" textAnchor="middle" dominantBaseline="middle" className="font-bold opacity-50 pointer-events-none">{t('theBin')}</text>
-                          <text x={cx + width/4} y={cy + height/4} fill="hsl(var(--destructive-foreground))" textAnchor="middle" dominantBaseline="middle" className="font-bold opacity-50 pointer-events-none">{t('russianRoulette')}</text>
-                        </>
-                      );
-                    } else {
-                      // Value lens labels
-                      return (
-                        <>
-                          <text x={cx + width/4} y={cy - height/4} fill="hsl(var(--accent-foreground))" textAnchor="middle" dominantBaseline="middle" className="font-bold opacity-50 pointer-events-none">{t('theSteal')}</text>
-                          <text x={cx - width/4} y={cy - height/4} fill="hsl(var(--foreground))" textAnchor="middle" dominantBaseline="middle" className="font-bold opacity-50 pointer-events-none">{t('cheapFiller')}</text>
-                          <text x={cx - width/4} y={cy + height/4} fill="hsl(var(--destructive-foreground))" textAnchor="middle" dominantBaseline="middle" className="font-bold opacity-50 pointer-events-none">{t('ripOff')}</text>
-                          <text x={cx + width/4} y={cy + height/4} fill="hsl(var(--destructive-foreground))" textAnchor="middle" dominantBaseline="middle" className="font-bold opacity-50 pointer-events-none">{t('treat')}</text>
-                        </>
-                      );
-                    }
-                  }}
-                />
+          {/* Y-Axis Title - positioned further left to avoid overlap */}
+          <div className="absolute -left-6 top-1/2 -translate-y-1/2 -rotate-90 text-xs text-muted-foreground whitespace-nowrap">
+            {yLabel}
+          </div>
 
-                <ChartTooltip
-                  cursor={{ strokeDasharray: '3 3' }}
-                  content={
-                    <ChartTooltipContent
-                      labelKey="product"
-                      nameKey="product"
-                      formatter={(value, name, props) => {
-                        const payloadColor = props.payload?.fill;
-                        if (name === 'product') {
-                          return (
-                            <span className="font-bold" style={{ color: payloadColor }}>
-                              {value}
-                            </span>
-                          );
+          {/* Main Chart Area */}
+          <div className="ml-10 mr-2">
+            <div className="relative w-full aspect-[16/10] rounded-md border border-border overflow-hidden">
+              {/* Quadrant Grid - 2x2 */}
+              <div className="absolute inset-0 grid grid-cols-2 grid-rows-2">
+                {/* Top-Left Quadrant */}
+                <div className={cn('relative border-r border-b border-border/50', QUADRANT_COLORS.topLeft)}>
+                  <span className="absolute inset-0 flex items-center justify-center text-[10px] sm:text-xs font-bold text-foreground/30 pointer-events-none">
+                    {labels.topLeft}
+                  </span>
+                </div>
+                {/* Top-Right Quadrant */}
+                <div className={cn('relative border-b border-border/50', QUADRANT_COLORS.topRight)}>
+                  <span className="absolute inset-0 flex items-center justify-center text-[10px] sm:text-xs font-bold text-foreground/30 pointer-events-none">
+                    {labels.topRight}
+                  </span>
+                </div>
+                {/* Bottom-Left Quadrant */}
+                <div className={cn('relative border-r border-border/50', QUADRANT_COLORS.bottomLeft)}>
+                  <span className="absolute inset-0 flex items-center justify-center text-[10px] sm:text-xs font-bold text-foreground/30 pointer-events-none">
+                    {labels.bottomLeft}
+                  </span>
+                </div>
+                {/* Bottom-Right Quadrant */}
+                <div className={cn('relative', QUADRANT_COLORS.bottomRight)}>
+                  <span className="absolute inset-0 flex items-center justify-center text-[10px] sm:text-xs font-bold text-foreground/30 pointer-events-none">
+                    {labels.bottomRight}
+                  </span>
+                </div>
+              </div>
+
+              {/* Product Dots */}
+              <TooltipProvider delayDuration={0}>
+                {mappedData.map((item) => (
+                  <Tooltip key={item.name}>
+                    <TooltipTrigger asChild>
+                      <div
+                        className={cn(
+                          'absolute w-3 h-3 rounded-full cursor-pointer transition-transform hover:scale-150',
+                          highlightedProduct === item.name && 'ring-2 ring-white ring-offset-2 ring-offset-background scale-150 z-10'
+                        )}
+                        style={{
+                          left: `${item.x}%`,
+                          bottom: `${item.y}%`,
+                          backgroundColor: item.color,
+                          transform: 'translate(-50%, 50%)',
+                          boxShadow: `0 2px 4px ${item.color}80`,
+                        }}
+                        onClick={() => onPointClick?.(item.name)}
+                      />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <div className="font-semibold" style={{ color: item.color }}>{item.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {mode === 'vibe' 
+                          ? `Safety: ${Math.round(item.y)}% | Taste: ${Math.round(item.x)}%`
+                          : `Taste: ${Math.round(item.x)}%`
                         }
-                        return [
-                          value,
-                          name === 'taste' ? 'Taste' : 'Safety',
-                        ];
-                      }}
-                      indicator="dot"
-                      className="min-w-[12rem] text-base"
-                    />
-                  }
-                />
-                <ZAxis dataKey="product" name="product" />
-                {showDots &&
-                  dataWithCoords.map((item) => (
-                    <Scatter
-                      key={item.product}
-                      data={[item]}
-                      name={item.product}
-                      fill={getColorForProduct(item.product)}
-                      shape={<CustomDot onPointClick={onPointClick} highlightedProduct={highlightedProduct} />}
-                    />
-                  ))}
-            </ScatterChart>
-          </ChartContainer>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+              </TooltipProvider>
+            </div>
+
+            {/* X-Axis Labels */}
+            <div className="flex justify-between mt-1 text-xs text-muted-foreground">
+              <span>0</span>
+              <span>25</span>
+              <span>50</span>
+              <span>75</span>
+              <span>100</span>
+            </div>
+
+            {/* X-Axis Title */}
+            <div className="text-center mt-1 text-xs text-muted-foreground">
+              {xLabel} Score
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>
