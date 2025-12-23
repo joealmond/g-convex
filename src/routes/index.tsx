@@ -13,23 +13,7 @@ import { useGeolocation } from '@/hooks/use-geolocation'
 import { useAdmin } from '@/hooks/use-admin'
 import type { Product } from '@/lib/types'
 
-// Mock translations
-const t = (key: string) => {
-    const map: Record<string, string> = {
-        'vibeLens': 'Vibe Lens',
-        'valueLens': 'Value Lens',
-        'nearMe': 'Near Me',
-        'holyGrail': 'Holy Grail',
-        'theSteal': 'The Steal',
-        'survivorFood': 'Survivor Food',
-        'cheapFiller': 'Cheap Filler',
-        'russianRoulette': 'Russian Roulette',
-        'treat': 'Treat',
-        'theBin': 'The Bin',
-        'ripOff': 'Rip Off',
-    };
-    return map[key] || key;
-}
+import { useTranslations } from '@/lib/i18n';
 
 const QUADRANT_TASTE_THRESHOLD = 50;
 const QUADRANT_SAFETY_THRESHOLD = 50;
@@ -61,6 +45,9 @@ export const Route = createFileRoute('/')({
 })
 
 function Home() {
+    // Translations
+    const t = useTranslations('Home');
+    
     // Fetch Data from Convex
     const { data: products } = useSuspenseQuery(convexQuery(api.products.list, { limit: 100 }));
     // Note: products type needs to assume it matches Product interface roughly
@@ -176,38 +163,42 @@ function Home() {
                     mode={chartMode}
                 />
 
-                <div className="flex gap-2 justify-center">
+                <div className="flex gap-2 justify-center flex-wrap">
+                   {/* Top-Right quadrant: green (Holy Grail / Treat) */}
                    <Button 
                         variant="ghost"
                         size="sm"
                         onClick={() => handleQuadrantClick('holyGrail')}
                         className={`bg-green-500/30 hover:bg-green-500/50 ${quadrantFilter === 'holyGrail' ? 'ring-2 ring-green-500' : ''}`}
                     >
-                        {chartMode === 'vibe' ? t('holyGrail') : t('theSteal')}
+                        {chartMode === 'vibe' ? t('holyGrail') : t('treat')}
                     </Button>
+                    {/* Top-Left quadrant: yellow (Survivor Food / Rip Off) */}
                     <Button 
                         variant="ghost"
                         size="sm"
                         onClick={() => handleQuadrantClick('survivorFood')}
                         className={`bg-yellow-500/30 hover:bg-yellow-500/50 ${quadrantFilter === 'survivorFood' ? 'ring-2 ring-yellow-500' : ''}`}
                     >
-                        {chartMode === 'vibe' ? t('survivorFood') : t('cheapFiller')}
+                        {chartMode === 'vibe' ? t('survivorFood') : t('ripOff')}
                     </Button>
+                    {/* Bottom-Right quadrant: orange (Russian Roulette / The Steal) */}
                     <Button 
                         variant="ghost"
                         size="sm"
                         onClick={() => handleQuadrantClick('russianRoulette')}
-                        className={`bg-red-500/30 hover:bg-red-500/50 ${quadrantFilter === 'russianRoulette' ? 'ring-2 ring-red-500' : ''}`}
+                        className={`bg-orange-500/30 hover:bg-orange-500/50 ${quadrantFilter === 'russianRoulette' ? 'ring-2 ring-orange-500' : ''}`}
                     >
-                        {chartMode === 'vibe' ? t('russianRoulette') : t('treat')}
+                        {chartMode === 'vibe' ? t('russianRoulette') : t('theSteal')}
                     </Button>
+                    {/* Bottom-Left quadrant: red (The Bin / Cheap Filler) */}
                     <Button 
                         variant="ghost"
                         size="sm"
                         onClick={() => handleQuadrantClick('theBin')}
-                        className={`bg-gray-500/30 hover:bg-gray-500/50 ${quadrantFilter === 'theBin' ? 'ring-2 ring-gray-500' : ''}`}
+                        className={`bg-red-500/30 hover:bg-red-500/50 ${quadrantFilter === 'theBin' ? 'ring-2 ring-red-500' : ''}`}
                     >
-                        {chartMode === 'vibe' ? t('theBin') : t('ripOff')}
+                        {chartMode === 'vibe' ? t('theBin') : t('cheapFiller')}
                     </Button>
                 </div>
             </div>

@@ -16,6 +16,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useTranslations } from '@/lib/i18n';
 
 export const chartColors = [
   '#8884d8',
@@ -40,22 +41,6 @@ export function getColorForProduct(productName: string): string {
   const index = Math.abs(hash) % chartColors.length;
   return chartColors[index];
 }
-
-// Quadrant labels
-const QUADRANT_LABELS = {
-  vibe: {
-    topRight: 'HOLY GRAIL',
-    topLeft: 'SURVIVOR FOOD',
-    bottomRight: 'RUSSIAN ROULETTE',
-    bottomLeft: 'THE BIN',
-  },
-  value: {
-    topRight: 'TREAT',
-    topLeft: 'RIP OFF',
-    bottomRight: 'THE STEAL',
-    bottomLeft: 'CHEAP FILLER',
-  },
-};
 
 // Quadrant colors - FIXED for both modes (position-based, not mode-based)
 // Green = best of both coordinates (top-right)
@@ -82,7 +67,16 @@ export function MatrixChart({
   onPointClick,
   mode = 'vibe',
 }: MatrixChartProps) {
-  const labels = QUADRANT_LABELS[mode];
+  // Translations
+  const t = useTranslations('MatrixChart');
+  
+  // Dynamic labels based on mode and locale
+  const labels = {
+    topRight: mode === 'vibe' ? t('holyGrail') : t('treat'),
+    topLeft: mode === 'vibe' ? t('survivorFood') : t('ripOff'),
+    bottomRight: mode === 'vibe' ? t('russianRoulette') : t('theSteal'),
+    bottomLeft: mode === 'vibe' ? t('theBin') : t('cheapFiller'),
+  };
   // Colors are now fixed - same for all modes
 
   // Map data - fixed 0-100 scale for all modes
@@ -103,9 +97,9 @@ export function MatrixChart({
       };
     });
 
-  const title = mode === 'vibe' ? 'Vibe Matrix' : 'Value Matrix';
-  const yLabel = mode === 'vibe' ? 'Safety' : 'Price';
-  const xLabel = 'Taste';
+  const title = mode === 'vibe' ? t('title') : t('valueLensTitle');
+  const yLabel = mode === 'vibe' ? t('safetyLabel') : t('priceLabel');
+  const xLabel = t('tasteAxisLabel');
 
   // Y-axis ticks
   const yTicks = mode === 'vibe' 
@@ -119,8 +113,7 @@ export function MatrixChart({
         <CardDescription className="flex items-center gap-1">
           <span>{yLabel}</span>
           <ArrowUp className="h-4 w-4" />
-          <span>vs</span>
-          <span>{xLabel}</span>
+          <span>{t('vsLabel')}</span>
           <ArrowRight className="h-4 w-4" />
         </CardDescription>
       </CardHeader>
