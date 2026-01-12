@@ -67,7 +67,13 @@ export async function submitVote(data: any) {
 }
 
 export async function recalculateProductAveragesWithTimeDecay(productId: string): Promise<{ success: boolean; error?: string }> {
-    // This is now a cron job usually, or internal mutation. 
-    console.log("recalculate called (stub)", productId);
-    return { success: true };
+    try {
+        const result = await convex.mutation(api.products.recalculateWithTimeDecay, { 
+            productId: productId as any 
+        });
+        return { success: result.success };
+    } catch (error: any) {
+        console.error("Recalculate failed:", error);
+        return { success: false, error: error.message };
+    }
 }

@@ -4,17 +4,21 @@ import { convexQuery } from '@convex-dev/react-query'
 import { api } from '../../../convex/_generated/api'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Input } from '../../components/ui/input'
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card'
 import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs'
 import { CoordinateGrid } from '../../components/dashboard/coordinate-grid'
-import { Loader2, CheckCircle, ThumbsUp } from 'lucide-react'
+import { Loader2, CheckCircle, ThumbsUp, Users, ShieldCheck, Eye, Trash2 } from 'lucide-react'
 import { useToast } from '../../hooks/use-toast'
 import { VotingPanel } from '../../components/dashboard/voting-panel'
 import { Button } from '../../components/ui/button'
 import { Slider } from '../../components/ui/slider'
 import { Label } from '../../components/ui/label'
+import { Badge } from '../../components/ui/badge'
+import { ScrollArea } from '../../components/ui/scroll-area'
 import { useMutation } from 'convex/react'
 import { useCurrentUser } from '../../hooks/use-current-user'
+import { useAdmin } from '../../hooks/use-admin'
+import { useImpersonate } from '../../hooks/use-impersonate'
 import type { Id } from '../../../convex/_generated/dataModel'
 import { useTranslations } from '../../lib/i18n'
 
@@ -48,12 +52,24 @@ function ProductPage() {
     const [analysisResult, setAnalysisResult] = useState<any>(null)
     const chartCardRef = useRef<HTMLDivElement>(null)
     
+    // Admin and impersonation
+    const { isAdmin, isRealAdmin } = useAdmin()
+    const { impersonatedUserId, startViewingAsUser } = useImpersonate()
+    const [highlightedVoteId, setHighlightedVoteId] = useState<string | null>(null)
+    const [deletingVoteId, setDeletingVoteId] = useState<string | null>(null)
+    
     // Check if this is a "new product" creation URL (new-{timestamp})
     const isNewProductUrl = decodedName.startsWith('new-')
     
     // Query for existing product - for new product URLs this will return null which is fine
     const { data: product, isLoading } = useQuery(
         convexQuery(api.products.getByName, { name: decodedName })
+    )
+    
+    // Query for all votes (for admin voter list) - only when product exists
+    // Note: query is skipped if productId is undefined
+    const { data: allVotes } = useQuery(
+        convexQuery(api.votes.byProduct, product?._id ? { productId: product._id } : "skip")
     )
 
     const [productName, setProductName] = useState(isNewProductUrl ? 'New Product' : decodedName)
@@ -73,6 +89,7 @@ function ProductPage() {
     
     const { userId, isRegistered } = useCurrentUser()
     const castVoteMutation = useMutation(api.votes.castVote)
+    const deleteVoteMutation = useMutation(api.votes.deleteVote)
     
     // Load analysis data from sessionStorage for new product URLs
     useEffect(() => {
@@ -108,6 +125,30 @@ function ProductPage() {
     
     const handleSliderChange = (type: 'safety' | 'taste', value: number[]) => {
         setCustomVibe(prev => ({ ...prev, [type]: value[0] }))
+    }
+    
+    // Delete vote handler (admin only)
+    const handleDeleteVote = async (voteUserId: string) => {
+        if (!product || !isAdmin) return
+        setDeletingVoteId(voteUserId)
+        try {
+            await deleteVoteMutation({
+                productId: product._id as Id<"products">,
+                voteUserId,
+            })
+            toast({
+                title: t('voteDeleted'),
+                description: t('voteDeletedDescription'),
+            })
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: t('deleteVoteFailed'),
+                description: error.message,
+            })
+        } finally {
+            setDeletingVoteId(null)
+        }
     }
     
     // Submit fine-tuned vote
@@ -259,6 +300,12 @@ function ProductPage() {
                                 <div className="text-2xl font-bold">{product.voteCount || 0}</div>
                             </div>
                         </div>
+                        
+                        {/* Weighted average indicator */}
+                        <div className="text-xs text-center text-muted-foreground flex items-center justify-center gap-1">
+                            <span className="inline-block w-2 h-2 rounded-full bg-green-500"></span>
+                            <span>{t('registeredVotesWeight')}</span>
+                        </div>
 
                         {/* Chart with CoordinateGrid - unified dot positioning */}
                         <div className="py-4">
@@ -266,28 +313,84 @@ function ProductPage() {
                                 mode="vibe"
                                 showLabels={true}
                                 showAxisLabels={true}
-                                dots={viewMode !== 'myVote' ? [
-                                    {
-                                        x: product.avgTaste ?? 50,
-                                        y: product.avgSafety ?? 50,
-                                        color: 'hsl(var(--primary))',
-                                        size: 'lg',
-                                        id: 'average'
+                                dots={(() => {
+                                    // When impersonating, find that user's vote
+                                    const impersonatedVote = impersonatedUserId && allVotes 
+                                        ? allVotes.find((v: any) => v.userId === impersonatedUserId)
+                                        : null;
+                                    
+                                    if (viewMode === 'average') {
+                                        return [{
+                                            x: product.avgTaste ?? 50,
+                                            y: product.avgSafety ?? 50,
+                                            color: 'hsl(var(--primary))',
+                                            size: 'lg' as const,
+                                            id: 'average'
+                                        }];
                                     }
-                                ] : []}
-                                draggable={viewMode === 'myVote' ? {
-                                    x: customVibe.taste,
-                                    y: customVibe.safety,
-                                    onChange: (x, y) => handleVibeChange({ safety: y, taste: x })
+                                    
+                                    if (viewMode === 'myVote') {
+                                        // If impersonating, show that user's vote (read-only)
+                                        if (impersonatedVote) {
+                                            return [{
+                                                x: impersonatedVote.taste,
+                                                y: impersonatedVote.safety,
+                                                color: 'hsl(45 93% 47%)', // Gold for impersonated
+                                                size: 'lg' as const,
+                                                id: 'impersonated'
+                                            }];
+                                        }
+                                        return []; // Draggable will handle this
+                                    }
+                                    
+                                    if (viewMode === 'allVotes' && allVotes) {
+                                        return [
+                                            // Show average dot
+                                            {
+                                                x: product.avgTaste ?? 50,
+                                                y: product.avgSafety ?? 50,
+                                                color: 'hsl(var(--primary))',
+                                                size: 'lg' as const,
+                                                id: 'average'
+                                            },
+                                            // Show all individual vote dots
+                                            ...allVotes.map((vote: any, idx: number) => ({
+                                                x: vote.taste,
+                                                y: vote.safety,
+                                                color: vote.userId === impersonatedUserId 
+                                                    ? 'hsl(45 93% 47%)' // Gold for impersonated
+                                                    : vote.isRegistered 
+                                                        ? 'hsl(142 76% 36%)' // Green for registered
+                                                        : 'hsl(var(--muted-foreground))', // Gray for anonymous
+                                                size: (vote.userId === impersonatedUserId ? 'lg' : 'sm') as 'lg' | 'sm',
+                                                id: `vote-${idx}`
+                                            }))
+                                        ];
+                                    }
+                                    
+                                    return [];
+                                })()}
+                                draggable={viewMode === 'myVote' && !impersonatedUserId ? {
+                                    x: Math.round(customVibe.taste),
+                                    y: Math.round(customVibe.safety),
+                                    onChange: (x, y) => handleVibeChange({ safety: Math.round(y), taste: Math.round(x) })
                                 } : undefined}
                             />
                         </div>
+                        
+                        {/* Impersonation indicator */}
+                        {impersonatedUserId && (
+                            <div className="flex items-center justify-center gap-2 py-2 px-3 bg-yellow-500/10 border border-yellow-500/30 rounded-md text-yellow-500 text-sm">
+                                <Eye className="h-4 w-4" />
+                                <span>Viewing as: {impersonatedUserId.slice(0, 12)}...</span>
+                            </div>
+                        )}
                         
                         {/* View Mode Tabs */}
                         <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as typeof viewMode)} className="w-full">
                             <TabsList className="grid w-full grid-cols-3">
                                 <TabsTrigger value="average">{t('average')}</TabsTrigger>
-                                <TabsTrigger value="myVote">{t('myVote')}</TabsTrigger>
+                                <TabsTrigger value="myVote">{impersonatedUserId ? t('theirVote') : t('myVote')}</TabsTrigger>
                                 <TabsTrigger value="allVotes">{t('allVotes')}</TabsTrigger>
                             </TabsList>
                         </Tabs>
@@ -302,7 +405,7 @@ function ProductPage() {
                                 {/* Sliders */}
                                 <div className="grid gap-4 sm:grid-cols-2">
                                     <div className="space-y-2">
-                                        <Label className="text-sm">Safety: {customVibe.safety}%</Label>
+                                        <Label className="text-sm">Safety: {Math.round(customVibe.safety)}%</Label>
                                         <Slider
                                             value={[customVibe.safety]}
                                             onValueChange={(v) => handleSliderChange('safety', v)}
@@ -311,7 +414,7 @@ function ProductPage() {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label className="text-sm">Taste: {customVibe.taste}%</Label>
+                                        <Label className="text-sm">Taste: {Math.round(customVibe.taste)}%</Label>
                                         <Slider
                                             value={[customVibe.taste]}
                                             onValueChange={(v) => handleSliderChange('taste', v)}
@@ -383,6 +486,109 @@ function ProductPage() {
                     </CardContent>
                 </Card>
              </div>
+             
+             {/* Admin Voter List */}
+             {isRealAdmin && allVotes && allVotes.length > 0 && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="font-headline flex items-center gap-2">
+                            <Users className="h-5 w-5" />
+                            {t('voterList')}
+                        </CardTitle>
+                        <CardDescription>
+                            {t('voterListDescription', { count: allVotes.length })}
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <ScrollArea className="h-[300px]">
+                            <div className="space-y-2">
+                                {allVotes.map((vote: any) => {
+                                    const voteAge = vote.timestamp ? getRelativeTimeString(vote.timestamp) : null
+                                    const isImpersonating = impersonatedUserId === vote.userId
+                                    
+                                    return (
+                                        <div 
+                                            key={vote._id}
+                                            className={`flex items-center justify-between p-3 rounded-lg border transition-colors cursor-pointer ${
+                                                highlightedVoteId === vote.userId ? 'bg-primary/10 border-primary' : 'hover:bg-muted/50'
+                                            } ${isImpersonating ? 'ring-2 ring-yellow-500' : ''}`}
+                                            onClick={() => {
+                                                setHighlightedVoteId(prev => prev === vote.userId ? null : vote.userId)
+                                                setViewMode('allVotes')
+                                                setTimeout(() => {
+                                                    chartCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                                                }, 100)
+                                            }}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className="flex flex-col">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-mono text-xs text-muted-foreground">
+                                                            {vote.userId?.slice(0, 8)}...
+                                                        </span>
+                                                        {vote.isRegistered ? (
+                                                            <Badge variant="secondary" className="text-xs">
+                                                                <ShieldCheck className="h-3 w-3 mr-1" />
+                                                                {t('verified')}
+                                                            </Badge>
+                                                        ) : (
+                                                            <Badge variant="outline" className="text-xs">{t('anonymous')}</Badge>
+                                                        )}
+                                                        {voteAge && (
+                                                            <span className="text-xs text-muted-foreground">{voteAge}</span>
+                                                        )}
+                                                        {isImpersonating && (
+                                                            <Badge variant="secondary" className="text-xs bg-yellow-500/20 text-yellow-500 border-yellow-500/50">
+                                                                <Eye className="h-3 w-3 mr-1" />
+                                                                {t('impersonating')}
+                                                            </Badge>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex gap-4 text-sm mt-1">
+                                                        <span>{t('safety')}: <strong>{vote.safety}%</strong></span>
+                                                        <span>{t('taste')}: <strong>{vote.taste}%</strong></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className={`hover:bg-yellow-500/10 ${isImpersonating ? 'text-yellow-500' : 'text-muted-foreground hover:text-yellow-500'}`}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        startViewingAsUser(vote.userId)
+                                                    }}
+                                                    title={t('viewAsThisUser')}
+                                                >
+                                                    <Eye className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        handleDeleteVote(vote.userId)
+                                                    }}
+                                                    disabled={deletingVoteId === vote.userId}
+                                                >
+                                                    {deletingVoteId === vote.userId ? (
+                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                    ) : (
+                                                        <Trash2 className="h-4 w-4" />
+                                                    )}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        </ScrollArea>
+                    </CardContent>
+                </Card>
+             )}
         </div>
     )
 }
+

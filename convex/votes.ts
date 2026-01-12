@@ -330,3 +330,194 @@ export const userVote = query({
             .first();
     }
 });
+
+// Admin emails for authorization
+const ADMIN_EMAILS = [
+  "jozsef.mandula@gmail.com",
+];
+
+/**
+ * Delete a vote (admin only) - recalculates product averages
+ */
+export const deleteVote = mutation({
+    args: {
+        productId: v.id("products"),
+        voteUserId: v.string(),
+    },
+    handler: async (ctx, args) => {
+        // Check if user is admin
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity || !identity.email || !ADMIN_EMAILS.includes(identity.email)) {
+            throw new Error("Unauthorized: Admin access required");
+        }
+
+        // Find the vote
+        const vote = await ctx.db.query("votes")
+            .withIndex("by_user_product", q => 
+                q.eq("userId", args.voteUserId as Id<"user">).eq("productId", args.productId)
+            )
+            .first();
+
+        if (!vote) {
+            throw new Error("Vote not found");
+        }
+
+        // Get product to update averages
+        const product = await ctx.db.get(args.productId);
+        if (!product) {
+            throw new Error("Product not found");
+        }
+
+        // Calculate new sums after removing this vote
+        let regCount = product.registeredVoteCount || 0;
+        let regSafetySum = product.registeredSafetySum || 0;
+        let regTasteSum = product.registeredTasteSum || 0;
+        let regPriceSum = product.registeredPriceSum || 0;
+        let anonCount = product.anonymousVoteCount || 0;
+        let anonSafetySum = product.anonymousSafetySum || 0;
+        let anonTasteSum = product.anonymousTasteSum || 0;
+        let anonPriceSum = product.anonymousPriceSum || 0;
+        let totalVoteCount = product.voteCount || 0;
+
+        // Subtract the vote's contribution
+        if (vote.isRegistered) {
+            regSafetySum -= vote.safety;
+            regTasteSum -= vote.taste;
+            if (vote.price) regPriceSum -= vote.price;
+            regCount -= 1;
+        } else {
+            anonSafetySum -= vote.safety;
+            anonTasteSum -= vote.taste;
+            if (vote.price) anonPriceSum -= vote.price;
+            anonCount -= 1;
+        }
+        totalVoteCount -= 1;
+
+        // Recalculate weighted averages
+        const newAvgSafety = calculateWeightedAverage(regSafetySum, regCount, anonSafetySum, anonCount);
+        const newAvgTaste = calculateWeightedAverage(regTasteSum, regCount, anonTasteSum, anonCount);
+        const newAvgPrice = calculateWeightedAverage(regPriceSum, regCount, anonPriceSum, anonCount);
+
+        // Update product
+        await ctx.db.patch(args.productId, {
+            registeredVoteCount: regCount,
+            registeredSafetySum: regSafetySum,
+            registeredTasteSum: regTasteSum,
+            registeredPriceSum: regPriceSum,
+            anonymousVoteCount: anonCount,
+            anonymousSafetySum: anonSafetySum,
+            anonymousTasteSum: anonTasteSum,
+            anonymousPriceSum: anonPriceSum,
+            voteCount: totalVoteCount,
+            avgSafety: newAvgSafety,
+            avgTaste: newAvgTaste,
+            avgPrice: newAvgPrice,
+        });
+
+        // Delete the vote
+        await ctx.db.delete(vote._id);
+
+        return { success: true };
+    }
+});
+
+/**
+ * Migrate anonymous votes to a registered user account.
+ * Called when a user signs in for the first time.
+ */
+export const migrateAnonymousVotes = mutation({
+    args: {
+        anonymousUserId: v.string(),
+    },
+    handler: async (ctx, args) => {
+        // Get the authenticated user
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity || !identity.subject) {
+            throw new Error("Must be authenticated to migrate votes");
+        }
+        
+        const newUserId = identity.subject as Id<"user">;
+        
+        // Find all votes by the anonymous user
+        const anonymousVotes = await ctx.db.query("votes")
+            .filter(q => q.eq(q.field("userId"), args.anonymousUserId))
+            .collect();
+        
+        if (anonymousVotes.length === 0) {
+            return { success: true, migratedCount: 0 };
+        }
+        
+        const affectedProductIds = new Set<Id<"products">>();
+        
+        for (const vote of anonymousVotes) {
+            // Check if user already has a vote for this product
+            const existingVote = await ctx.db.query("votes")
+                .withIndex("by_user_product", q => 
+                    q.eq("userId", newUserId).eq("productId", vote.productId)
+                )
+                .first();
+            
+            if (existingVote) {
+                // User already voted - skip this one (keep their registered vote)
+                continue;
+            }
+            
+            // Migrate the vote
+            await ctx.db.patch(vote._id, {
+                userId: newUserId,
+                isRegistered: true,
+                updatedAt: Date.now(),
+            });
+            
+            affectedProductIds.add(vote.productId);
+        }
+        
+        // Recalculate averages for affected products
+        for (const productId of affectedProductIds) {
+            const product = await ctx.db.get(productId);
+            if (!product) continue;
+            
+            const votes = await ctx.db.query("votes")
+                .withIndex("by_product", q => q.eq("productId", productId))
+                .collect();
+            
+            let regCount = 0, regSafetySum = 0, regTasteSum = 0, regPriceSum = 0;
+            let anonCount = 0, anonSafetySum = 0, anonTasteSum = 0, anonPriceSum = 0;
+            
+            for (const v of votes) {
+                if (v.isRegistered) {
+                    regCount++;
+                    regSafetySum += v.safety;
+                    regTasteSum += v.taste;
+                    if (v.price) regPriceSum += v.price;
+                } else {
+                    anonCount++;
+                    anonSafetySum += v.safety;
+                    anonTasteSum += v.taste;
+                    if (v.price) anonPriceSum += v.price;
+                }
+            }
+            
+            const avgSafety = calculateWeightedAverage(regSafetySum, regCount, anonSafetySum, anonCount);
+            const avgTaste = calculateWeightedAverage(regTasteSum, regCount, anonTasteSum, anonCount);
+            const avgPrice = calculateWeightedAverage(regPriceSum, regCount, anonPriceSum, anonCount);
+            
+            await ctx.db.patch(productId, {
+                registeredVoteCount: regCount,
+                registeredSafetySum: regSafetySum,
+                registeredTasteSum: regTasteSum,
+                registeredPriceSum: regPriceSum,
+                anonymousVoteCount: anonCount,
+                anonymousSafetySum: anonSafetySum,
+                anonymousTasteSum: anonTasteSum,
+                anonymousPriceSum: anonPriceSum,
+                voteCount: regCount + anonCount,
+                avgSafety,
+                avgTaste,
+                avgPrice,
+            });
+        }
+        
+        return { success: true, migratedCount: anonymousVotes.length };
+    }
+});

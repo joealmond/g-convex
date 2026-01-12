@@ -50,7 +50,17 @@
     "Admin": {
         "verifyingAdminAccess": "Admin jogok ellenőrzése...",
         "accessDeniedTitle": "Hozzáférés megtagadva",
-        "accessDeniedDescription": "Nincs jogod az oldal megtekintéséhez."
+        "accessDeniedDescription": "Nincs jogod az oldal megtekintéséhez.",
+        "title": "Admin kezelőpult",
+        "subtitle": "Termékek kezelése és statisztikák újraszámolása",
+        "accessDenied": "Hozzáférés megtagadva",
+        "adminRequired": "Admin jogok szükségesek",
+        "recalculateAll": "Összes újraszámolása",
+        "recalculateAllSuccess": "Újraszámolás kész",
+        "recalculateAllSuccessDesc": "{count} termék újraszámolva",
+        "recalculateAllFailed": "Újraszámolás sikertelen",
+        "productManagement": "Termékkezelés",
+        "productCount": "{count} termék"
     },
     "ProductPage": {
         "productNotFound": "Termék nem található",
@@ -80,6 +90,7 @@
         "noVoteYet": "Még nem szavaztál",
         "userHasNotVoted": "Ez a felhasználó még nem szavazott",
         "theirVote": "Az ő szavazata",
+        "registeredVotesWeight": "Regisztrált szavazatok 2× súllyal (súlyozott átlag)",
         "viewingAs": "Megtekintés felhasználóként",
         "verifiedUser": "Hitelesített felhasználó",
         "anonymousUser": "Anonim felhasználó",

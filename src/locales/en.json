@@ -50,7 +50,17 @@
     "Admin": {
         "verifyingAdminAccess": "Verifying admin access...",
         "accessDeniedTitle": "Access Denied",
-        "accessDeniedDescription": "You do not have permission to view this page."
+        "accessDeniedDescription": "You do not have permission to view this page.",
+        "title": "Admin Dashboard",
+        "subtitle": "Manage products and recalculate stats",
+        "accessDenied": "Access Denied",
+        "adminRequired": "Admin privileges required",
+        "recalculateAll": "Recalculate All",
+        "recalculateAllSuccess": "Recalculation Complete",
+        "recalculateAllSuccessDesc": "{count} products recalculated",
+        "recalculateAllFailed": "Recalculation Failed",
+        "productManagement": "Product Management",
+        "productCount": "{count} products"
     },
     "ProductPage": {
         "productNotFound": "Product not found",
@@ -80,6 +90,7 @@
         "noVoteYet": "You haven't voted yet",
         "userHasNotVoted": "This user hasn't voted yet",
         "theirVote": "Their Vote",
+        "registeredVotesWeight": "Registered votes count 2× (weighted average)",
         "viewingAs": "Viewing as user",
         "verifiedUser": "Verified User",
         "anonymousUser": "Anonymous User",
