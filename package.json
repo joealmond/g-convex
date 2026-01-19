@@ -6,12 +6,29 @@
   "scripts": {
     "dev": "npx convex dev --once && concurrently -r npm:dev:web npm:dev:convex",
     "dev:web": "vite dev",
-    "dev:ts": "tsc -b -w",
     "dev:convex": "npx convex dev",
+    "dev:ts": "tsc -b -w",
     "build": "vite build && tsc --noEmit",
     "start": "node .output/server/index.mjs",
     "format": "prettier --write .",
-    "lint": "tsc && eslint .  --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
+    "lint": "tsc && eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    
+    "deploy": "npx convex deploy --cmd 'npm run build' && netlify deploy --prod",
+    "deploy:backend": "npx convex deploy",
+    "deploy:frontend": "npm run build && netlify deploy --prod",
+    "deploy:preview": "npm run build && netlify deploy",
+    
+    "convex:push": "npx convex dev --once",
+    "convex:logs": "npx convex logs",
+    "convex:dashboard": "npx convex dashboard",
+    "convex:env:list": "npx convex env list",
+    "convex:env:set": "npx convex env set",
+    "convex:seed": "npx convex run seed:seedProductsInternal",
+    "convex:migrate": "npx convex run migrations:run",
+    
+    "netlify:logs": "netlify logs:function server",
+    "netlify:open": "netlify open",
+    "netlify:env": "netlify env:list"
   },
   "dependencies": {
     "@convex-dev/better-auth": "^0.10.6",
