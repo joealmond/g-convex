@@ -1,17 +1,18 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { convexQuery } from '@convex-dev/react-query'
+import { useMemo, useState } from 'react'
+import { Loader2, MapPinned } from 'lucide-react'
 import { api } from '../../convex/_generated/api'
-import { useState, useMemo } from 'react'
+import type { Product } from '@/lib/types'
+import type {ChartMode} from '@/components/dashboard/matrix-chart';
 import { ProductList } from '@/components/dashboard/product-list'
 import { AdminProductList } from '@/components/dashboard/admin-product-list'
 import { ProductSearch } from '@/components/dashboard/product-search'
-import { MatrixChart, type ChartMode } from '@/components/dashboard/matrix-chart'
+import {  MatrixChart } from '@/components/dashboard/matrix-chart'
 import { Button } from '@/components/ui/button'
-import { Loader2, MapPinned } from 'lucide-react'
 import { useGeolocation } from '@/hooks/use-geolocation'
 import { useAdmin } from '@/hooks/use-admin'
-import type { Product } from '@/lib/types'
 
 import { useTranslations } from '@/lib/i18n';
 
@@ -64,7 +65,7 @@ function Home() {
 
     const filteredData = useMemo(() => {
         if (!products) return [];
-        let data = products as unknown as Product[]; // Cast for now
+        let data = products as unknown as Array<Product>; // Cast for now
 
         // Apply search
         if (searchTerm) {

@@ -27,13 +27,13 @@ export interface ProfileStats {
   points: number;
   totalVotes: number;
   newProductVotes: number;
-  storesTagged: string[];
+  storesTagged: Array<string>;
   gpsVotes: number;
   currentStreak: number;
   longestStreak: number;
 }
 
-export const BADGES: BadgeDefinition[] = [
+export const BADGES: Array<BadgeDefinition> = [
   {
     id: 'first_scout',
     name: 'First Scout',
@@ -122,8 +122,8 @@ export function calculatePoints(details: VoteDetails): number {
 /**
  * Check which new badges a user has earned based on their updated profile
  */
-export function checkNewBadges(profile: ProfileStats, existingBadgeIds: string[]): BadgeDefinition[] {
-  const newBadges: BadgeDefinition[] = [];
+export function checkNewBadges(profile: ProfileStats, existingBadgeIds: Array<string>): Array<BadgeDefinition> {
+  const newBadges: Array<BadgeDefinition> = [];
   
   for (const badge of BADGES) {
     // Skip already earned badges

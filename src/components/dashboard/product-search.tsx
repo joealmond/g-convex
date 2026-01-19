@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef } from 'react';
+import { Search } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -8,7 +9,6 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Search } from 'lucide-react';
 import { useTranslations } from '@/lib/i18n';
 import { useIsMobile } from '@/hooks/use-mobile';
 

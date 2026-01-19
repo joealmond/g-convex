@@ -1,5 +1,13 @@
 'use client';
 import { useState } from 'react';
+import { Link } from '@tanstack/react-router';
+import { RefreshCw, Trash2 } from 'lucide-react';
+import { useMutation } from 'convex/react';
+import { Skeleton } from '../ui/skeleton';
+import { Button } from '../ui/button';
+import { api } from '../../../convex/_generated/api';
+import type { Product } from '@/lib/types';
+import type { Id } from '../../../convex/_generated/dataModel';
 import {
   Card,
   CardContent,
@@ -7,11 +15,6 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import type { Product } from '@/lib/types';
-import { Skeleton } from '../ui/skeleton';
-import { Link } from '@tanstack/react-router';
-import { Button } from '../ui/button';
-import { Trash2, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { recalculateProductAveragesWithTimeDecay } from '@/app/actions';
 import {
@@ -26,12 +29,9 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useTranslations } from '@/lib/i18n';
-import { useMutation } from 'convex/react';
-import { api } from '../../../convex/_generated/api';
-import type { Id } from '../../../convex/_generated/dataModel';
 
 type AdminProductListProps = {
-  chartData: Product[];
+  chartData: Array<Product>;
   onItemClick?: (productName: string) => void;
   highlightedProduct?: string | null;
   loading: boolean;

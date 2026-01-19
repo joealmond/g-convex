@@ -1,11 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { convexQuery } from '@convex-dev/react-query'
+import { Loader2, MapPin, Trophy, Zap } from 'lucide-react'
 import { api } from '../../convex/_generated/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, Trophy, MapPin, Zap } from 'lucide-react'
 
 export const Route = createFileRoute('/profile')({
   component: ProfilePage,
@@ -27,10 +27,10 @@ function ProfilePage() {
 
     const stats = user.profile ? {
         ...user.profile,
-        badges: user.profile.badges || []
+        badges: user.profile.badges
     } : {
         points: 0,
-        badges: [] as string[],
+        badges: [] as Array<string>,
         currentStreak: 0,
         longestStreak: 0,
         totalVotes: 0
@@ -97,7 +97,7 @@ function ProfilePage() {
                 <CardContent>
                     <div className="flex flex-wrap gap-4">
                         {BADGES.map(badge => {
-                            const isUnlocked = stats.badges?.includes(badge.id)
+                            const isUnlocked = stats.badges.includes(badge.id)
                             return (
                                 <div key={badge.id} 
                                      className={`flex flex-col items-center p-4 rounded-lg border w-32 text-center transition-all ${isUnlocked ? 'bg-primary/10 border-primary' : 'opacity-40 grayscale'}`}>
@@ -107,7 +107,7 @@ function ProfilePage() {
                                 </div>
                             )
                         })}
-                        {stats.badges?.length === 0 && <p className="text-muted-foreground">Start voting to earn badges!</p>}
+                        {stats.badges.length === 0 && <p className="text-muted-foreground">Start voting to earn badges!</p>}
                     </div>
                 </CardContent>
             </Card>

@@ -1,5 +1,9 @@
 'use client';
 
+import { useNavigate } from '@tanstack/react-router';
+import { ImageUploadForm } from './image-upload-form';
+import type { ReactNode } from 'react';
+import type { ImageAnalysisState } from '@/lib/actions-types';
 import {
   Dialog,
   DialogContent,
@@ -8,10 +12,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { ImageUploadForm } from './image-upload-form';
-import type { ReactNode } from 'react';
-import { useNavigate } from '@tanstack/react-router';
-import type { ImageAnalysisState } from '@/lib/actions-types';
 import { useTranslations } from '@/lib/i18n';
 
 type ImageUploadDialogProps = {

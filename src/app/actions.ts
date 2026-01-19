@@ -1,8 +1,11 @@
-import type { ImageAnalysisState } from '@/lib/actions-types';
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../convex/_generated/api";
+import type { ImageAnalysisState } from '@/lib/actions-types';
 
-const convex = new ConvexHttpClient(import.meta.env.VITE_CONVEX_URL);
+import { env } from '@/lib/env';
+
+const convex = new ConvexHttpClient(env.VITE_CONVEX_URL);
+
 
 export async function analyzeAndUploadProduct(_prevState: ImageAnalysisState, formData: FormData): Promise<ImageAnalysisState> {
   try {
@@ -59,9 +62,7 @@ export async function analyzeAndUploadProduct(_prevState: ImageAnalysisState, fo
   }
 }
 
-export async function submitVote(data: any) {
-  // Use mutation directly from component usually, but if needed here:
-//   return await convex.mutation(api.votes.castVote, data);
+export function submitVote(data: any) {
   console.log("submitVote called (legacy action stub)", data);
   return { success: true };
 }

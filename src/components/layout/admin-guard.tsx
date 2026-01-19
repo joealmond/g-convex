@@ -1,11 +1,11 @@
 'use client';
 
-import { useUser } from '@/firebase';
-import { useAdmin } from '@/hooks/use-admin';
 import { useNavigate } from '@tanstack/react-router';
 import { useEffect } from 'react';
-import type { ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { useAdmin } from '@/hooks/use-admin';
+import { useUser } from '@/firebase';
 
 export function AdminGuard({ children }: { children: ReactNode }) {
   const { user, isLoading: isUserLoading } = useUser();

@@ -1,18 +1,18 @@
 'use client';
 
 import {
-  ChartContainer,
-} from '@/components/ui/chart';
-import { useIsMobile } from '@/hooks/use-mobile';
-import {
-  XAxis,
-  YAxis,
   CartesianGrid,
   Label,
   ReferenceArea,
+  ResponsiveContainer,
   ScatterChart,
-  ResponsiveContainer
+  XAxis,
+  YAxis
 } from 'recharts';
+import {
+  ChartContainer,
+} from '@/components/ui/chart';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useTranslations } from '@/lib/i18n';
 
 interface ProductVibeChartProps {

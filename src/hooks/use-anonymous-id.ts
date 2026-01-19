@@ -1,4 +1,9 @@
-'use client';
+/**
+ * React hook version for getting the anonymous ID
+ */
+import { useEffect, useState } from 'react';
+
+
 
 const ANON_ID_KEY = 'g-convex-anon-id';
 
@@ -31,11 +36,6 @@ export function clearAnonymousId(): void {
     localStorage.removeItem(ANON_ID_KEY);
   }
 }
-
-/**
- * React hook version for getting the anonymous ID
- */
-import { useState, useEffect } from 'react';
 
 export function useAnonymousId(): string {
   const [anonId, setAnonId] = useState<string>('anon_loading');

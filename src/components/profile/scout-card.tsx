@@ -1,10 +1,10 @@
 'use client';
 
+import { Flame, Star, Trophy } from 'lucide-react';
+import type { UserProfile } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Flame, Trophy, Star } from 'lucide-react';
 import { BADGES } from '@/lib/gamification';
-import type { UserProfile } from '@/lib/types';
 
 interface ScoutCardProps {
   profile: UserProfile | null;

@@ -8,6 +8,10 @@ import * as React from 'react'
 import type { QueryClient } from '@tanstack/react-query'
 import appCss from '~/styles/app.css?url'
 
+import { Toaster } from '@/components/ui/toaster'
+import { GeolocationProvider } from '@/hooks/use-geolocation'
+import { AppLayout } from '@/components/layout/app-layout'
+
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient
 }>()({
@@ -50,10 +54,6 @@ export const Route = createRootRouteWithContext<{
   notFoundComponent: () => <div>Route not found</div>,
   component: RootComponent,
 })
-
-import { Toaster } from '@/components/ui/toaster'
-import { GeolocationProvider } from '@/hooks/use-geolocation'
-import { AppLayout } from '@/components/layout/app-layout'
 
 // ...
 

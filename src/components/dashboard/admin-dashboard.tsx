@@ -1,15 +1,15 @@
 'use client';
 
+import { useMemo, useState } from 'react';
+import type { Product } from '@/lib/types';
 import { MatrixChart } from '@/components/dashboard/matrix-chart';
 import { ProductSearch } from '@/components/dashboard/product-search';
 import { AdminProductList } from '@/components/dashboard/admin-product-list';
-import { useMemo, useState } from 'react';
-import type { Product } from '@/lib/types';
 // import { Button } from '@/components/ui/button';
 // import { useToast } from '@/hooks/use-toast';
 
 interface AdminDashboardProps {
-  chartData: Product[];
+  chartData: Array<Product>;
   loading: boolean;
 }
 

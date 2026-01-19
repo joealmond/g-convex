@@ -97,7 +97,7 @@ export default defineSchema({
     avgSafety: v.number(),
     avgTaste: v.number(),
     avgPrice: v.number(),
-    voteCount: v.number(),
+
     
     registeredVoteCount: v.number(),
     registeredSafetySum: v.number(),

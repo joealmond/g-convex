@@ -1,5 +1,5 @@
-import { query, internalMutation, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { internalMutation, mutation, query } from "./_generated/server";
 // Better-auth integration usually implies we use ctx.auth for user ID.
 
 export const generateUploadUrl = mutation({
@@ -30,7 +30,7 @@ export const list = query({
 export const get = query({
     args: { id: v.id("products") },
     handler: async (ctx, args) => {
-        return await ctx.db.get(args.id);
+        return await ctx.db.get("products", args.id);
     }
 });
 
@@ -55,8 +55,8 @@ export const applyTimeDecay = internalMutation({
     // 3. Update each product
     for (const product of products) {
         // Only decay if there's significant data
-        if (product.voteCount > 0) {
-           await ctx.db.patch(product._id, {
+        if ((product.registeredVoteCount + product.anonymousVoteCount) > 0) {
+           await ctx.db.patch("products", product._id, {
                avgSafety: product.avgSafety * DECAY_Rate,
                avgTaste: product.avgTaste * DECAY_Rate,
                // Price usually doesn't decay in "vibe" the same way, but maybe? 
@@ -85,7 +85,7 @@ export const deleteProduct = mutation({
     }
 
     // Get the product first to verify it exists
-    const product = await ctx.db.get(args.productId);
+    const product = await ctx.db.get("products", args.productId);
     if (!product) {
       throw new Error("Product not found");
     }
@@ -97,11 +97,11 @@ export const deleteProduct = mutation({
       .collect();
 
     for (const vote of votes) {
-      await ctx.db.delete(vote._id);
+      await ctx.db.delete("votes", vote._id);
     }
 
     // Delete the product
-    await ctx.db.delete(args.productId);
+    await ctx.db.delete("products", args.productId);
 
     return { success: true, deletedVotes: votes.length, productName: product.name };
   },
@@ -119,7 +119,7 @@ export const recalculateWithTimeDecay = mutation({
       throw new Error("Unauthorized: Admin access required");
     }
 
-    const product = await ctx.db.get(args.productId);
+    const product = await ctx.db.get("products", args.productId);
     if (!product) {
       throw new Error("Product not found");
     }
@@ -132,11 +132,11 @@ export const recalculateWithTimeDecay = mutation({
 
     if (votes.length === 0) {
       // No votes, reset to 0
-      await ctx.db.patch(args.productId, {
+      await ctx.db.patch("products", args.productId, {
         avgSafety: 0,
         avgTaste: 0,
         avgPrice: 0,
-        voteCount: 0,
+
         registeredVoteCount: 0,
         anonymousVoteCount: 0,
       });
@@ -185,11 +185,11 @@ export const recalculateWithTimeDecay = mutation({
     const avgTaste = totalWeight > 0 ? totalWeightedTaste / totalWeight : 0;
     const avgPrice = priceCount > 0 ? totalWeightedPrice / totalWeight : 0;
 
-    await ctx.db.patch(args.productId, {
+    await ctx.db.patch("products", args.productId, {
       avgSafety,
       avgTaste,
       avgPrice,
-      voteCount: votes.length,
+
       registeredVoteCount: registeredCount,
       anonymousVoteCount: anonymousCount,
     });
@@ -223,11 +223,11 @@ export const recalculateAll = mutation({
           .collect();
 
         if (votes.length === 0) {
-          await ctx.db.patch(product._id, {
+          await ctx.db.patch("products", product._id, {
             avgSafety: 0,
             avgTaste: 0,
             avgPrice: 0,
-            voteCount: 0,
+
           });
           processed++;
           continue;
@@ -261,11 +261,11 @@ export const recalculateAll = mutation({
           totalWeight += finalWeight;
         }
 
-        await ctx.db.patch(product._id, {
+        await ctx.db.patch("products", product._id, {
           avgSafety: totalWeight > 0 ? totalWeightedSafety / totalWeight : 0,
           avgTaste: totalWeight > 0 ? totalWeightedTaste / totalWeight : 0,
           avgPrice: priceCount > 0 ? totalWeightedPrice / totalWeight : 0,
-          voteCount: votes.length,
+
         });
 
         processed++;
@@ -286,7 +286,7 @@ export const recalculateAll = mutation({
 export const internalRecalculate = mutation({
   args: { productId: v.id("products") },
   handler: async (ctx, args) => {
-    const product = await ctx.db.get(args.productId);
+    const product = await ctx.db.get("products", args.productId);
     if (!product) {
       throw new Error("Product not found");
     }
@@ -298,11 +298,11 @@ export const internalRecalculate = mutation({
       .collect();
 
     if (votes.length === 0) {
-      await ctx.db.patch(args.productId, {
+      await ctx.db.patch("products", args.productId, {
         avgSafety: 0,
         avgTaste: 0,
         avgPrice: 0,
-        voteCount: 0,
+
         registeredVoteCount: 0,
         anonymousVoteCount: 0,
         registeredSafetySum: 0,
@@ -348,7 +348,7 @@ export const internalRecalculate = mutation({
       ? ((registeredPriceSum * REGISTERED_WEIGHT) + (anonymousPriceSum * ANONYMOUS_WEIGHT)) / totalWeight 
       : 0;
 
-    await ctx.db.patch(args.productId, {
+    await ctx.db.patch("products", args.productId, {
       registeredVoteCount: registeredCount,
       registeredSafetySum,
       registeredTasteSum,
@@ -357,7 +357,7 @@ export const internalRecalculate = mutation({
       anonymousSafetySum,
       anonymousTasteSum,
       anonymousPriceSum,
-      voteCount: registeredCount + anonymousCount,
+
       avgSafety,
       avgTaste,
       avgPrice,

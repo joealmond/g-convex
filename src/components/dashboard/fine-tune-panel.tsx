@@ -1,4 +1,14 @@
 'use client';
+import { useCallback, useState } from 'react';
+import { useMutation } from 'convex/react';
+import { Slider } from '../ui/slider';
+import { Label } from '../ui/label';
+import { Button } from '../ui/button';
+import { api } from '../../../convex/_generated/api';
+import { ProductVibeChart } from './product-vibe-chart';
+import { DraggableDot } from './draggable-dot';
+import type { Product, Vote } from '@/lib/types';
+import type { Id } from '../../../convex/_generated/dataModel';
 import {
   Card,
   CardContent,
@@ -7,19 +17,9 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { useState, useCallback } from 'react';
-import type { Product, Vote } from '@/lib/types';
-import { ProductVibeChart } from './product-vibe-chart';
-import { DraggableDot } from './draggable-dot';
 import { useToast } from '@/hooks/use-toast';
-import { Slider } from '../ui/slider';
-import { Label } from '../ui/label';
-import { Button } from '../ui/button';
 import { useTranslations } from '@/lib/i18n';
-import { useMutation } from 'convex/react';
-import { api } from '../../../convex/_generated/api';
 import { useCurrentUser } from '@/hooks/use-current-user';
-import type { Id } from '../../../convex/_generated/dataModel';
 
 interface FineTunePanelProps {
   product: Product;
@@ -47,7 +47,7 @@ export function FineTunePanel({ initialVote, productId }: FineTunePanelProps) {
     setVibe(newVibe);
   };
 
-  const handleSliderChange = (type: 'safety' | 'taste', value: number[]) => {
+  const handleSliderChange = (type: 'safety' | 'taste', value: Array<number>) => {
     setVibe(prev => ({...prev, [type]: value[0]}));
   }
 

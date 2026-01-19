@@ -18,7 +18,7 @@ export interface ProfileStats {
     totalVotes: number;
     newProductVotes: number;
     gpsVotes: number;
-    storesTagged: string[];
+    storesTagged: Array<string>;
     currentStreak: number;
     longestStreak: number;
 }
@@ -33,7 +33,7 @@ export interface BadgeDefinition {
   condition: (profile: ProfileStats) => boolean;
 }
 
-export const BADGES: BadgeDefinition[] = [
+export const BADGES: Array<BadgeDefinition> = [
   {
     id: 'first_scout',
     name: 'First Scout',
@@ -115,8 +115,8 @@ export function calculatePoints(details: VoteDetails): number {
   return points;
 }
 
-export function checkNewBadges(profile: ProfileStats, existingBadgeIds: string[]): BadgeDefinition[] {
-  const newBadges: BadgeDefinition[] = [];
+export function checkNewBadges(profile: ProfileStats, existingBadgeIds: Array<string>): Array<BadgeDefinition> {
+  const newBadges: Array<BadgeDefinition> = [];
   
   for (const badge of BADGES) {
     if (existingBadgeIds.includes(badge.id)) continue;

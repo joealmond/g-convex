@@ -1,9 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
 // import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { authClient } from '@/lib/auth-client'
 import { useState } from 'react'
 import { Loader2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { authClient } from '@/lib/auth-client'
 
 // import { createAuthClient } from "better-auth/react"; (already handled in auth-client.ts)
 

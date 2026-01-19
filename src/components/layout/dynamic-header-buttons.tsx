@@ -1,9 +1,7 @@
 'use client';
 
-import { useRouter, useLocation, Link } from '@tanstack/react-router';
-import { ArrowLeft, Upload, LogIn, LogOut, User, Star, MapPin } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { ImageUploadDialog } from '@/components/product/image-upload-dialog';
+import { Link, useLocation, useRouter } from '@tanstack/react-router';
+import { ArrowLeft, LogIn, LogOut, MapPin, Star, Upload, User } from 'lucide-react';
 import { useState } from 'react';
 import { Skeleton } from '../ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
@@ -12,8 +10,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '../ui/popover';
-import { ScoutCard } from '@/components/profile/scout-card';
 import { LanguageSwitcher } from './language-switcher';
+import { ScoutCard } from '@/components/profile/scout-card';
+import { ImageUploadDialog } from '@/components/product/image-upload-dialog';
+import { Button } from '@/components/ui/button';
 import { authClient } from '@/lib/auth-client';
 import { useGeolocation } from '@/hooks/use-geolocation';
 import { useUserProfile } from '@/hooks/use-user-profile';

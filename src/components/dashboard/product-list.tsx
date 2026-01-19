@@ -1,4 +1,8 @@
 'use client';
+import { Link } from '@tanstack/react-router';
+import { MapPin, ShieldCheck, Users } from 'lucide-react';
+import { Skeleton } from '../ui/skeleton';
+import type { Product } from '@/lib/types';
 import {
   Card,
   CardContent,
@@ -7,14 +11,10 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import type { Product } from '@/lib/types';
-import { Skeleton } from '../ui/skeleton';
-import { Link } from '@tanstack/react-router';
-import { Users, ShieldCheck, MapPin } from 'lucide-react';
 import { useTranslations } from '@/lib/i18n';
 
 type ProductListProps = {
-  chartData: Product[];
+  chartData: Array<Product>;
   onItemClick?: (productName: string) => void;
   highlightedProduct?: string | null;
   loading: boolean;
@@ -81,7 +81,7 @@ export function ProductList({ chartData, onItemClick, highlightedProduct, loadin
                   <div className="flex items-center gap-2 mt-1">
                     <Badge variant="outline" className="text-xs px-1.5 py-0">
                       <Users className="h-3 w-3 mr-1" />
-                      {item.voteCount || 0}
+                      {(item.registeredVoteCount || 0) + (item.anonymousVoteCount || 0)}
                     </Badge>
                     {(item.registeredVoteCount || 0) > 0 && (
                       <Badge variant="secondary" className="text-xs px-1.5 py-0">

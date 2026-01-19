@@ -1,5 +1,7 @@
 'use client';
 
+import { ArrowRight, ArrowUp } from 'lucide-react';
+import type { Product } from '@/lib/types';
 import {
   Card,
   CardContent,
@@ -7,8 +9,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import type { Product } from '@/lib/types';
-import { ArrowRight, ArrowUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Tooltip,
@@ -55,7 +55,7 @@ const QUADRANT_COLORS = {
 export type ChartMode = 'vibe' | 'value';
 
 type MatrixChartProps = {
-  chartData: Product[];
+  chartData: Array<Product>;
   highlightedProduct?: string | null;
   onPointClick?: (productName: string) => void;
   mode?: ChartMode;

@@ -1,11 +1,25 @@
 'use client';
 import {
+  Flag,
+  Loader2,
+  Locate,
+  MapPin,
+  ShieldAlert,
+  ShieldCheck,
+  ShieldX,
+} from 'lucide-react';
+import { useState } from 'react';
+import { useMutation } from "convex/react";
+import { api } from "../../../convex/_generated/api";
+import type { Product, Vote } from '@/lib/types';
+import type { ImageAnalysisState } from '@/lib/actions-types';
+import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
-  CardTitle,
-  CardFooter
+  CardTitle
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,25 +30,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  ShieldCheck,
-  ShieldAlert,
-  ShieldX,
-  Flag,
-  MapPin,
-  Locate,
-  Loader2,
-} from 'lucide-react';
-import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { useGeolocation } from '@/hooks/use-geolocation';
 
 import { Checkbox } from '@/components/ui/checkbox';
-import type { Vote, Product } from '@/lib/types';
-import type { ImageAnalysisState } from '@/lib/actions-types';
-import { useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
 import { useTranslations } from '@/lib/i18n';
 import { useCurrentUser } from '@/hooks/use-current-user';
 
@@ -277,7 +277,7 @@ export function VotingPanel({ product, productName, analysisResult, onVibeSubmit
         <div>
           <h3 className="mb-2 font-semibold text-center">{t('priceQuestion')}</h3>
           <div className="flex justify-center gap-2">
-            {([1, 2, 3, 4, 5] as PriceVote[]).map((val) => (
+            {([1, 2, 3, 4, 5] as Array<PriceVote>).map((val) => (
               <Button
                 key={val}
                 variant="outline"

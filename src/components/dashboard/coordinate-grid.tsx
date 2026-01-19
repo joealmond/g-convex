@@ -1,7 +1,7 @@
 'use client';
 
+import { useCallback, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { useState, useRef, useCallback } from 'react';
 
 // Quadrant labels
 const QUADRANT_LABELS = {
@@ -52,7 +52,7 @@ interface DraggableConfig {
 
 interface CoordinateGridProps {
   mode?: 'vibe' | 'value';
-  dots?: Dot[];
+  dots?: Array<Dot>;
   draggable?: DraggableConfig;
   showLabels?: boolean;
   showAxisLabels?: boolean;

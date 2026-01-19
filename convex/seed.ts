@@ -11,9 +11,6 @@ export const seedProductsInternal = internalMutation({
     if (existingProducts.length > 0) {
       return { success: false, message: "Products already exist. Delete them first." };
     }
-    if (existingProducts.length > 0) {
-      return { success: false, message: "Products already exist. Delete them first." };
-    }
 
     const now = Date.now();
     
@@ -27,7 +24,6 @@ export const seedProductsInternal = internalMutation({
         avgSafety: 85,
         avgTaste: 72,
         avgPrice: 60,
-        voteCount: 24,
         registeredVoteCount: 18,
         registeredSafetySum: 1530,
         registeredTasteSum: 1296,
@@ -50,7 +46,6 @@ export const seedProductsInternal = internalMutation({
         avgSafety: 92,
         avgTaste: 88,
         avgPrice: 40,
-        voteCount: 45,
         registeredVoteCount: 35,
         registeredSafetySum: 3220,
         registeredTasteSum: 3080,
@@ -72,7 +67,6 @@ export const seedProductsInternal = internalMutation({
         avgSafety: 95,
         avgTaste: 82,
         avgPrice: 80,
-        voteCount: 15,
         registeredVoteCount: 12,
         registeredSafetySum: 1140,
         registeredTasteSum: 984,
@@ -94,7 +88,6 @@ export const seedProductsInternal = internalMutation({
         avgSafety: 25,
         avgTaste: 65,
         avgPrice: 20,
-        voteCount: 8,
         registeredVoteCount: 5,
         registeredSafetySum: 125,
         registeredTasteSum: 325,
@@ -114,7 +107,6 @@ export const seedProductsInternal = internalMutation({
         avgSafety: 78,
         avgTaste: 45,
         avgPrice: 20,
-        voteCount: 32,
         registeredVoteCount: 25,
         registeredSafetySum: 1950,
         registeredTasteSum: 1125,

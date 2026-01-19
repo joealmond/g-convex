@@ -1,10 +1,10 @@
 'use client';
 
+import { Eye, EyeOff, Shield, User } from 'lucide-react';
 import { useAdmin } from '@/hooks/use-admin';
 import { useImpersonate } from '@/hooks/use-impersonate';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Eye, EyeOff, Shield, User } from 'lucide-react';
 import { useTranslations } from '@/lib/i18n';
 
 export function AdminToolbar() {

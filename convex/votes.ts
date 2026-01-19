@@ -1,8 +1,17 @@
-import { mutation, query, type MutationCtx } from "./_generated/server";
+// --- IMPORTS ---
 import { v } from "convex/values";
+import { RateLimiter } from "@convex-dev/rate-limiter";
+import { ShardedCounter } from "@convex-dev/sharded-counter";
+import {  calculatePoints, calculateStreak, checkNewBadges } from "./lib/gamification";
+import { ANONYMOUS_VOTE_WEIGHT, REGISTERED_VOTE_WEIGHT } from "./lib/config";
+import {  mutation, query } from "./_generated/server";
+import { components } from "./_generated/api";
+import type {ProfileStats} from "./lib/gamification";
+import type {MutationCtx} from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
-import { calculatePoints, checkNewBadges, calculateStreak, type ProfileStats } from "./lib/gamification";
-import { REGISTERED_VOTE_WEIGHT, ANONYMOUS_VOTE_WEIGHT } from "./lib/config";
+
+const rateLimiter = new RateLimiter((components as any).rateLimiter);
+const shardedCounter = new ShardedCounter((components as any).shardedCounter);
 
 // --- HELPER: Calculate weighted average ---
 function calculateWeightedAverage(
@@ -34,7 +43,7 @@ async function applyVoteLogic(
     }
 ) {
     // 2. Fetch Prerequisite Data
-    const product = await ctx.db.get(productId);
+    const product = await ctx.db.get("products", productId);
     if (!product) throw new Error("Product not found");
 
     const existingVote = await ctx.db.query("votes")
@@ -52,7 +61,9 @@ async function applyVoteLogic(
     let anonTasteSum = product.anonymousTasteSum;
     let anonPriceSum = product.anonymousPriceSum;
     
-    let totalVoteCount = product.voteCount;
+    // Note: We use sharded counter for high-concurrency total votes,
+    // but we still keep track of complex sums here for weighted averages.
+    // Ideally, these sums would also be sharded if they become a bottleneck.
 
     // 4. Subtract Old Vote Logic (if exists)
     if (existingVote) {
@@ -67,7 +78,8 @@ async function applyVoteLogic(
             if (existingVote.price) anonPriceSum -= existingVote.price;
             anonCount -= 1;
         }
-        totalVoteCount -= 1;
+        // Decrement sharded counter for total votes
+        await shardedCounter.add(ctx, `votes_product_${productId}`, -1);
     }
 
     // 5. Add New Vote Logic
@@ -82,7 +94,8 @@ async function applyVoteLogic(
         if (args.price) anonPriceSum += args.price;
         anonCount += 1;
     }
-    totalVoteCount += 1;
+    // Increment sharded counter for total votes
+    await shardedCounter.add(ctx, `votes_product_${productId}`, 1);
 
     // 6. Calculate New Averages
     const newAvgSafety = calculateWeightedAverage(regSafetySum, regCount, anonSafetySum, anonCount);
@@ -90,7 +103,7 @@ async function applyVoteLogic(
     const newAvgPrice = calculateWeightedAverage(regPriceSum, regCount, anonPriceSum, anonCount);
 
     // 7. Store Handling
-    let stores = product.stores || [];
+    const stores = product.stores || [];
     if (args.storeName) {
         const existingStoreIndex = stores.findIndex(s => s.name.toLowerCase() === args.storeName!.toLowerCase());
         const storeEntry = {
@@ -106,8 +119,9 @@ async function applyVoteLogic(
         }
     }
 
-    // 8. Update Product
-    await ctx.db.patch(productId, {
+    // 8. Update Product (except voteCount, which is now sharded)
+    // We update avg scores on the doc, but the total count comes from component
+    await ctx.db.patch("products", productId, {
         registeredVoteCount: regCount,
         registeredSafetySum: regSafetySum,
         registeredTasteSum: regTasteSum,
@@ -116,7 +130,7 @@ async function applyVoteLogic(
         anonymousSafetySum: anonSafetySum,
         anonymousTasteSum: anonTasteSum,
         anonymousPriceSum: anonPriceSum,
-        voteCount: totalVoteCount,
+
         avgSafety: newAvgSafety,
         avgTaste: newAvgTaste,
         avgPrice: newAvgPrice,
@@ -125,7 +139,7 @@ async function applyVoteLogic(
 
     // 9. Upsert Vote
     if (existingVote) {
-        await ctx.db.patch(existingVote._id, {
+        await ctx.db.patch("votes", existingVote._id, {
             safety: args.safety,
             taste: args.taste,
             price: args.price,
@@ -150,14 +164,14 @@ async function applyVoteLogic(
         });
     }
 
-    // 10. Gamification (only for registered users, wrapped in try-catch to not block voting)
+    // 10. Gamification... (unchanged)
     if (isRegistered) {
         try {
             await processGamification(ctx, userId, {
                 hasPrice: !!args.price,
                 hasStore: !!args.storeName,
                 hasGps: !!args.geoPoint,
-                isNewProduct: product.voteCount <= 1,
+                isNewProduct: (product.registeredVoteCount + product.anonymousVoteCount) <= 1,
                 votesTodayCount: 0,
             });
         } catch (e) {
@@ -183,9 +197,14 @@ export const castVote = mutation({
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
+    const isRegistered = !!identity;
+
+    // RATE LIMIT: 10 votes per minute per user (or IP/anonymous ID)
+    const limiterKey = identity?.subject || args.userId || "anonymous_global"; 
+    await rateLimiter.limit(ctx, "vote", { key: limiterKey, config: { kind: "fixed window", rate: 10, period: 60 * 1000 } });
+
     // Use authenticated user ID if available, otherwise use client-provided anonymous ID
     const userId = (identity?.subject || args.userId || "anonymous") as Id<"user">;
-    const isRegistered = !!identity;
     return await applyVoteLogic(ctx, args.productId, userId, isRegistered, args);
   }
 });
@@ -205,6 +224,11 @@ export const createProductAndVote = mutation({
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
+    
+    // Rate limit creation too? Maybe stricter.
+    const limiterKey = identity?.subject || args.userId || "anonymous_global"; 
+    await rateLimiter.limit(ctx, "create_product", { key: limiterKey, config: { kind: "fixed window", rate: 5, period: 60 * 60 * 1000 } }); // 5 per hour
+
     // Use authenticated user ID if available, otherwise use client-provided anonymous ID
     const userId = (identity?.subject || args.userId || "anonymous") as Id<"user">;
     
@@ -226,7 +250,7 @@ export const createProductAndVote = mutation({
             avgPrice: args.price || 0,
             avgSafety: args.safety,
             avgTaste: args.taste,
-            voteCount: 0, 
+
             registeredVoteCount: 0,
             registeredSafetySum: 0,
             registeredTasteSum: 0,
@@ -251,6 +275,7 @@ export const createProductAndVote = mutation({
     });
   }
 });
+
 
 // --- GAMIFICATION LOGIC ---
 async function processGamification(ctx: MutationCtx, userId: Id<"user">, details: any) {
@@ -290,7 +315,7 @@ async function processGamification(ctx: MutationCtx, userId: Id<"user">, details
     const isNewDay = streakResult.isNewDay;
 
     if (profile) {
-        await ctx.db.patch(profile._id, {
+        await ctx.db.patch("profiles", profile._id, {
             ...updatedProfileStats,
             badges: finalBadges,
             lastVoteDate: now.toISOString(),
@@ -363,7 +388,7 @@ export const deleteVote = mutation({
         }
 
         // Get product to update averages
-        const product = await ctx.db.get(args.productId);
+        const product = await ctx.db.get("products", args.productId);
         if (!product) {
             throw new Error("Product not found");
         }
@@ -377,7 +402,7 @@ export const deleteVote = mutation({
         let anonSafetySum = product.anonymousSafetySum || 0;
         let anonTasteSum = product.anonymousTasteSum || 0;
         let anonPriceSum = product.anonymousPriceSum || 0;
-        let totalVoteCount = product.voteCount || 0;
+
 
         // Subtract the vote's contribution
         if (vote.isRegistered) {
@@ -391,7 +416,8 @@ export const deleteVote = mutation({
             if (vote.price) anonPriceSum -= vote.price;
             anonCount -= 1;
         }
-        totalVoteCount -= 1;
+        // Decrement sharded counter for total votes
+        await shardedCounter.add(ctx, `votes_product_${args.productId}`, -1);
 
         // Recalculate weighted averages
         const newAvgSafety = calculateWeightedAverage(regSafetySum, regCount, anonSafetySum, anonCount);
@@ -399,7 +425,7 @@ export const deleteVote = mutation({
         const newAvgPrice = calculateWeightedAverage(regPriceSum, regCount, anonPriceSum, anonCount);
 
         // Update product
-        await ctx.db.patch(args.productId, {
+        await ctx.db.patch("products", args.productId, {
             registeredVoteCount: regCount,
             registeredSafetySum: regSafetySum,
             registeredTasteSum: regTasteSum,
@@ -408,14 +434,14 @@ export const deleteVote = mutation({
             anonymousSafetySum: anonSafetySum,
             anonymousTasteSum: anonTasteSum,
             anonymousPriceSum: anonPriceSum,
-            voteCount: totalVoteCount,
+
             avgSafety: newAvgSafety,
             avgTaste: newAvgTaste,
             avgPrice: newAvgPrice,
         });
 
         // Delete the vote
-        await ctx.db.delete(vote._id);
+        await ctx.db.delete("votes", vote._id);
 
         return { success: true };
     }
@@ -463,7 +489,7 @@ export const migrateAnonymousVotes = mutation({
             }
             
             // Migrate the vote
-            await ctx.db.patch(vote._id, {
+            await ctx.db.patch("votes", vote._id, {
                 userId: newUserId,
                 isRegistered: true,
                 updatedAt: Date.now(),
@@ -474,7 +500,7 @@ export const migrateAnonymousVotes = mutation({
         
         // Recalculate averages for affected products
         for (const productId of affectedProductIds) {
-            const product = await ctx.db.get(productId);
+            const product = await ctx.db.get("products", productId);
             if (!product) continue;
             
             const votes = await ctx.db.query("votes")
@@ -484,17 +510,17 @@ export const migrateAnonymousVotes = mutation({
             let regCount = 0, regSafetySum = 0, regTasteSum = 0, regPriceSum = 0;
             let anonCount = 0, anonSafetySum = 0, anonTasteSum = 0, anonPriceSum = 0;
             
-            for (const v of votes) {
-                if (v.isRegistered) {
+            for (const vote of votes) {
+                if (vote.isRegistered) {
                     regCount++;
-                    regSafetySum += v.safety;
-                    regTasteSum += v.taste;
-                    if (v.price) regPriceSum += v.price;
+                    regSafetySum += vote.safety;
+                    regTasteSum += vote.taste;
+                    if (vote.price) regPriceSum += vote.price;
                 } else {
                     anonCount++;
-                    anonSafetySum += v.safety;
-                    anonTasteSum += v.taste;
-                    if (v.price) anonPriceSum += v.price;
+                    anonSafetySum += vote.safety;
+                    anonTasteSum += vote.taste;
+                    if (vote.price) anonPriceSum += vote.price;
                 }
             }
             
@@ -502,7 +528,7 @@ export const migrateAnonymousVotes = mutation({
             const avgTaste = calculateWeightedAverage(regTasteSum, regCount, anonTasteSum, anonCount);
             const avgPrice = calculateWeightedAverage(regPriceSum, regCount, anonPriceSum, anonCount);
             
-            await ctx.db.patch(productId, {
+            await ctx.db.patch("products", productId, {
                 registeredVoteCount: regCount,
                 registeredSafetySum: regSafetySum,
                 registeredTasteSum: regTasteSum,
@@ -511,7 +537,7 @@ export const migrateAnonymousVotes = mutation({
                 anonymousSafetySum: anonSafetySum,
                 anonymousTasteSum: anonTasteSum,
                 anonymousPriceSum: anonPriceSum,
-                voteCount: regCount + anonCount,
+
                 avgSafety,
                 avgTaste,
                 avgPrice,

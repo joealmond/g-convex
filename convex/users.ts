@@ -1,5 +1,5 @@
-import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
 
 export const current = query({
   args: {},
@@ -82,7 +82,7 @@ export const migrateAnonymousVotes = mutation({
     // Update each vote to use the new authenticated user ID
     let migratedCount = 0;
     for (const vote of anonymousVotes) {
-      await ctx.db.patch(vote._id, {
+      await ctx.db.patch("votes", vote._id, {
         userId: newUserId as any,
         isRegistered: true, // Now they're registered!
       });
@@ -161,13 +161,13 @@ export const setAdminByEmail = mutation({
     }
 
     // Find or create profile
-    let profile = await ctx.db
+    const profile = await ctx.db
       .query("profiles")
       .withIndex("by_user", (q) => q.eq("userId", user._id))
       .first();
 
     if (profile) {
-      await ctx.db.patch(profile._id, {
+      await ctx.db.patch("profiles", profile._id, {
         role: args.isAdmin ? "admin" : undefined,
       });
     } else {

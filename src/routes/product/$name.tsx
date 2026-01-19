@@ -1,13 +1,14 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { convexQuery } from '@convex-dev/react-query'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { CheckCircle, Eye, Loader2, ShieldCheck, ThumbsUp, Trash2, Users } from 'lucide-react'
+import { useMutation } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
-import { useState, useRef, useEffect, useCallback } from 'react'
 import { Input } from '../../components/ui/input'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card'
 import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs'
 import { CoordinateGrid } from '../../components/dashboard/coordinate-grid'
-import { Loader2, CheckCircle, ThumbsUp, Users, ShieldCheck, Eye, Trash2 } from 'lucide-react'
 import { useToast } from '../../hooks/use-toast'
 import { VotingPanel } from '../../components/dashboard/voting-panel'
 import { Button } from '../../components/ui/button'
@@ -15,12 +16,11 @@ import { Slider } from '../../components/ui/slider'
 import { Label } from '../../components/ui/label'
 import { Badge } from '../../components/ui/badge'
 import { ScrollArea } from '../../components/ui/scroll-area'
-import { useMutation } from 'convex/react'
 import { useCurrentUser } from '../../hooks/use-current-user'
 import { useAdmin } from '../../hooks/use-admin'
 import { useImpersonate } from '../../hooks/use-impersonate'
-import type { Id } from '../../../convex/_generated/dataModel'
 import { useTranslations } from '../../lib/i18n'
+import type { Id } from '../../../convex/_generated/dataModel'
 
 export const Route = createFileRoute('/product/$name')({
   component: ProductPage,
@@ -123,7 +123,7 @@ function ProductPage() {
         setCustomVibe(newVibe)
     }, [])
     
-    const handleSliderChange = (type: 'safety' | 'taste', value: number[]) => {
+    const handleSliderChange = (type: 'safety' | 'taste', value: Array<number>) => {
         setCustomVibe(prev => ({ ...prev, [type]: value[0] }))
     }
     
@@ -297,7 +297,7 @@ function ProductPage() {
                             </div>
                              <div>
                                 <div className="text-xs text-muted-foreground uppercase">{t('votes')}</div>
-                                <div className="text-2xl font-bold">{product.voteCount || 0}</div>
+                                <div className="text-2xl font-bold">{(product.registeredVoteCount || 0) + (product.anonymousVoteCount || 0)}</div>
                             </div>
                         </div>
                         

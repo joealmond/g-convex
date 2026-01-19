@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import enTranslations from '@/locales/en.json';
 import huTranslations from '@/locales/hu.json';
 
@@ -85,7 +85,7 @@ export function useTranslations(namespace?: string) {
 /**
  * Get available locales
  */
-export function getLocales(): Locale[] {
+export function getLocales(): Array<Locale> {
   return ['en', 'hu'];
 }
 

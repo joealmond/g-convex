@@ -1,7 +1,8 @@
-import { api } from "../convex/_generated/api";
 import admin from 'firebase-admin';
 import { ConvexHttpClient } from "convex/browser";
 import * as dotenv from 'dotenv';
+import { api } from "../convex/_generated/api";
+
 dotenv.config({ path: '.env.local' });
 dotenv.config(); // fallback to .env for other secrets if needed
 

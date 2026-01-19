@@ -1,10 +1,9 @@
 'use client';
 
-import { useLocale, setLocale, getLocales } from '@/lib/i18n';
-import { Button } from '@/components/ui/button';
 import { Globe } from 'lucide-react';
 import { useState } from 'react';
-import { useTranslations } from '@/lib/i18n';
+import { getLocales, setLocale, useLocale, useTranslations  } from '@/lib/i18n';
+import { Button } from '@/components/ui/button';
 
 export function LanguageSwitcher() {
   const locale = useLocale();

@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
-import { authClient } from '@/lib/auth-client';
-import { useAnonymousId, clearAnonymousId, getAnonymousId } from './use-anonymous-id';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
+import { clearAnonymousId, getAnonymousId, useAnonymousId } from './use-anonymous-id';
+import { authClient } from '@/lib/auth-client';
 
 export interface CurrentUser {
   /** The user ID - either authenticated user ID or anonymous ID */
